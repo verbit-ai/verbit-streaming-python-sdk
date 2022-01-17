@@ -33,7 +33,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # set access token
-    access_token = 'secret!'
+    access_token = '<your-access-token>'
 
     # init verbit streaming client
     client = SpeechStreamClient(access_token=access_token)
@@ -49,4 +49,6 @@ if __name__ == '__main__':
     # get transcription responses
     print('Listening for responses ...')
     for response in response_generator:
-        print(response)
+        alternatives = response['response']['alternatives']
+        alt0_transcript = alternatives[0]['transcript']
+        print(alt0_transcript)
