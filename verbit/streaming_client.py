@@ -6,6 +6,7 @@ import typing
 import logging
 from threading import Thread
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from tenacity import retry, wait_random_exponential, stop_after_delay
 from websocket import WebSocket, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
@@ -13,38 +14,40 @@ from websocket import WebSocket, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 @dataclass
 class MediaConfig:
-    format: str = 'PCM'
-    sample_rate: int = 16000
-    sample_width: int = 2
+    format: str = 'S16LE'       # signed 16-bit little-endian PCM
+    sample_rate: int = 16000    # in Hz
+    sample_width: int = 2       # in bytes
     num_channels: int = 1
 
 
 class SpeechStreamClient:
 
+    # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 60.0
 
-    def __init__(self, stream_id, access_token, on_media_error: typing.Callable[[Exception], None] = None):
+    # events
+    EVENT_EOS = 'EOS'
+
+    def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
 
         # assert arguments
         if not access_token:
             raise ValueError("Parameter 'access_token' is required")
 
-        if not stream_id:
-            raise ValueError("Parameter 'stream_id' is required")
-
         # media config
         self._media_config = None
 
-        self.max_connection_retry_seconds = self.DEFAULT_CONNECT_TIMEOUT_SECONDS
+        self._max_connection_retry_seconds = self.DEFAULT_CONNECT_TIMEOUT_SECONDS
 
         # ASR config
         self._model_id = None
         self._language_code = None
 
         # web socket
+        self._schema = 'wss'
         self._base_url = "speech.verbit.co"
+        self._server_path = '/ws'
         self._ws_client = WebSocket(enable_multithread=True)
-        self._ws_stream_id = stream_id
         self._ws_access_token = access_token
 
         # internal
@@ -59,9 +62,7 @@ class SpeechStreamClient:
     # ========== #
     @property
     def ws_url(self) -> str:
-        return f'wss://{self._base_url}/ws'
-
-    _max_connection_retry_seconds: float
+        return f'{self._schema}://{self._base_url}{self._server_path}'
 
     @property
     def max_connection_retry_seconds(self) -> float:
@@ -74,11 +75,14 @@ class SpeechStreamClient:
     # ========= #
     # Interface #
     # ========= #
-    def start_stream(self, media_generator) -> typing.Generator:
+    def start_stream(self, media_generator, media_config: MediaConfig = None) -> typing.Generator:
         """Start streaming media, returns a response generator."""
 
+        # use default media config if not provided
+        media_config = media_config or MediaConfig()
+
         # connect to websocket
-        self._connect_websocket()
+        self._connect_websocket(media_config=media_config)
 
         # start media sender thread
         self._media_sender_thread = Thread(
@@ -90,10 +94,24 @@ class SpeechStreamClient:
         # return response generator
         return self._response_generator()
 
+    def send_event(self, event: str, payload: dict = None):
+
+        # use default payload if not provided
+        payload = payload or dict()
+
+        # prepare message dict
+        msg = dict(event=event, payload=payload)
+
+        # serialize as json
+        msg_json = json.dumps(msg)
+
+        # send to server
+        self._ws_client.send(msg_json)
+
     # ======== #
     # Internal #
     # ======== #
-    def _connect_websocket(self):
+    def _connect_websocket(self, media_config: MediaConfig):
         """
         Connect to the URL returned by
             self.ws_url
@@ -108,21 +126,30 @@ class SpeechStreamClient:
 
         Which is linked and documented in tenacity:
         https://tenacity.readthedocs.io/en/latest/api.html#wait-functions
+
+        :param media_config: a MediaConfig dataclass which describes the media format sent by the client
         """
+
+        # build websocket url
+        ws_url = self.ws_url + self._get_ws_connect_query_string(media_config=media_config)
+
         try:
+
             @retry(wait=wait_random_exponential(multiplier=0.5,  max=60), stop=stop_after_delay(self.max_connection_retry_seconds))
             def connect_and_retry():
+
                 # open websocket connection
-                self._ws_client.connect(self.ws_url, header=self._get_ws_connect_headers())
+                self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
+
+            # connect
             connect_and_retry()
 
         except Exception:
-            self._logger.exception(f'Error connecting WebSocket')
+            self._logger.exception(f'Error connecting WebSocket!')
             raise
 
-
     def _default_on_media_error(self, err: Exception):
-        self._logger.warning(f'Exception on media thread: Type={type(err)} Message={err}')
+        self._logger.exception(f'Exception on media thread!')
 
     def _media_sender_worker(self, media_generator):
         """Thread function for emitting media from a user-given generator."""
@@ -136,7 +163,7 @@ class SpeechStreamClient:
                 self._ws_client.send_binary(chunk)
 
             # signal end of stream
-            self._ws_client.send("EOS")
+            self.send_event(event=self.EVENT_EOS)
             self._logger.debug(f'Finished sending media')
 
         except Exception as err:
@@ -213,10 +240,16 @@ class SpeechStreamClient:
             self._logger.exception(f'WebSocket closed with invalid payload. Data={data}')
 
     def _get_ws_connect_headers(self):
-        return {
-            'X-Stream': self._ws_stream_id,
-            **self._get_ws_auth_info()
-        }
+        return {**self._get_ws_auth_info()}
+
+    @staticmethod
+    def _get_ws_connect_query_string(media_config: MediaConfig) -> str:
+        return '?' + urlencode({
+            'format': media_config.format,
+            'sample_rate': media_config.sample_rate,
+            'sample_width': media_config.sample_width,
+            'num_channels': media_config.num_channels
+        })
 
     def _get_ws_auth_info(self):
         return {'Authorization': f'Bearer {self._ws_access_token}'}
