@@ -14,7 +14,7 @@ from websocket import WebSocket, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 @dataclass
 class MediaConfig:
-    format: str = 's16le'       # signed 16-bit little-endian PCM
+    format: str = 'S16LE'       # signed 16-bit little-endian PCM
     sample_rate: int = 16000    # in Hz
     sample_width: int = 2       # in bytes
     num_channels: int = 1
@@ -94,7 +94,7 @@ class SpeechStreamClient:
         # return response generator
         return self._response_generator()
 
-    def send(self, event: str, payload: dict = None):
+    def send_event(self, event: str, payload: dict = None):
 
         # use default payload if not provided
         payload = payload or dict()
@@ -145,11 +145,11 @@ class SpeechStreamClient:
             connect_and_retry()
 
         except Exception:
-            self._logger.exception(f'Error connecting WebSocket')
+            self._logger.exception(f'Error connecting WebSocket!')
             raise
 
     def _default_on_media_error(self, err: Exception):
-        self._logger.exception(f'Exception on media thread: Type={type(err)} Message={err}')
+        self._logger.exception(f'Exception on media thread!')
 
     def _media_sender_worker(self, media_generator):
         """Thread function for emitting media from a user-given generator."""
@@ -163,7 +163,7 @@ class SpeechStreamClient:
                 self._ws_client.send_binary(chunk)
 
             # signal end of stream
-            self.send(event=self.EVENT_EOS)
+            self.send_event(event=self.EVENT_EOS)
             self._logger.debug(f'Finished sending media')
 
         except Exception as err:
