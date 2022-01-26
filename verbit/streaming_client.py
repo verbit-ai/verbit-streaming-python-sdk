@@ -4,6 +4,7 @@ import json
 import struct
 import typing
 import logging
+from enum import IntFlag
 from threading import Thread
 from dataclasses import dataclass
 from urllib.parse import urlencode
@@ -18,6 +19,11 @@ class MediaConfig:
     sample_rate: int = 16000    # in Hz
     sample_width: int = 2       # in bytes
     num_channels: int = 1
+
+
+class ResponseType(IntFlag):
+    Transcript = 1
+    Captions = 2
 
 
 class SpeechStreamClient:
@@ -43,7 +49,7 @@ class SpeechStreamClient:
         self._model_id = None
         self._language_code = None
 
-        # web socket
+        # websocket
         self._schema = 'wss'
         self._base_url = "speech.verbit.co"
         self._server_path = '/ws'
@@ -51,7 +57,7 @@ class SpeechStreamClient:
         self._ws_access_token = access_token
 
         # internal
-        self._logger = logging.getLogger(self.__class__.__name__)
+        self._init_logger()
         self._media_sender_thread = None
 
         # error handling
@@ -75,14 +81,25 @@ class SpeechStreamClient:
     # ========= #
     # Interface #
     # ========= #
-    def start_stream(self, media_generator, media_config: MediaConfig = None) -> typing.Generator:
-        """Start streaming media, returns a response generator."""
+    def start_stream(self,
+                     media_generator,
+                     media_config: MediaConfig = None,
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator:
+        """
+        Start streaming media and get back speech recognition responses from server.
+
+        :param media_generator: a generator of media bytes chunks to stream over websocket for speech recognition
+        :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
+        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the server
+
+        :returns a generator whih yields speech recognition responses (transcript, captions or both)
+        """
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
 
         # connect to websocket
-        self._connect_websocket(media_config=media_config)
+        self._connect_websocket(media_config=media_config, response_types=response_types)
 
         # start media sender thread
         self._media_sender_thread = Thread(
@@ -111,7 +128,26 @@ class SpeechStreamClient:
     # ======== #
     # Internal #
     # ======== #
-    def _connect_websocket(self, media_config: MediaConfig):
+    def _init_logger(self):
+
+        # create logger
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.setLevel(logging.DEBUG)
+
+        # create console handler and set level to debug
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+
+        # create formatter
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        # add formatter to ch
+        ch.setFormatter(formatter)
+
+        # add ch to logger
+        self._logger.addHandler(ch)
+
+    def _connect_websocket(self, media_config: MediaConfig, response_types: ResponseType):
         """
         Connect to the URL returned by
             self.ws_url
@@ -127,11 +163,12 @@ class SpeechStreamClient:
         Which is linked and documented in tenacity:
         https://tenacity.readthedocs.io/en/latest/api.html#wait-functions
 
-        :param media_config: a MediaConfig dataclass which describes the media format sent by the client
+        :param media_config:    a MediaConfig dataclass which describes the media format sent by the client
+        :param response_types: a bitmask Flag denoting which response type(s) should be returned by the server
         """
 
         # build websocket url
-        ws_url = self.ws_url + self._get_ws_connect_query_string(media_config=media_config)
+        ws_url = self.ws_url + self._get_ws_connect_query_string(media_config=media_config, response_types=response_types)
 
         try:
 
@@ -151,7 +188,7 @@ class SpeechStreamClient:
     def _default_on_media_error(self, err: Exception):
         self._logger.exception(f'Exception on media thread!')
 
-    def _media_sender_worker(self, media_generator):
+    def _media_sender_worker(self, media_generator: typing.Generator):
         """Thread function for emitting media from a user-given generator."""
 
         try:
@@ -169,18 +206,22 @@ class SpeechStreamClient:
         except Exception as err:
             self._on_media_error(err)
 
-    def _response_generator(self):
-        """Generator function for yielding responses."""
+    def _response_generator(self) -> typing.Generator:
+        """
+        Generator function for yielding responses.
+
+        For available response structures, see: ... # TODO : where to put documentation?
+        """
 
         # ws is already connected at this point, see: start_stream()
         assert self._ws_client.connected, 'WebSocket client is disconnected!'
 
-        # init final response flag
-        received_final_response = False
+        # init closing flag
+        received_close = False
 
         try:
 
-            while not received_final_response:
+            while not received_close:
 
                 # read data from websocket
                 opcode, data = self._ws_client.recv_data()
@@ -191,9 +232,6 @@ class SpeechStreamClient:
                     # parse from json
                     resp = json.loads(data.decode('utf-8'))
 
-                    # update final response flag
-                    received_final_response = resp['response'].get('is_end_of_stream', False)
-
                     yield resp
 
                 # message is close signal
@@ -201,7 +239,9 @@ class SpeechStreamClient:
 
                     # handle close
                     self._handle_socket_close(data)
-                    break
+
+                    # update closing flag
+                    received_close = True
 
                 else:
 
@@ -239,17 +279,18 @@ class SpeechStreamClient:
         except Exception:
             self._logger.exception(f'WebSocket closed with invalid payload. Data={data}')
 
-    def _get_ws_connect_headers(self):
+    def _get_ws_connect_headers(self) -> dict:
         return {**self._get_ws_auth_info()}
 
     @staticmethod
-    def _get_ws_connect_query_string(media_config: MediaConfig) -> str:
+    def _get_ws_connect_query_string(media_config: MediaConfig, response_types: ResponseType) -> str:
         return '?' + urlencode({
             'format': media_config.format,
             'sample_rate': media_config.sample_rate,
             'sample_width': media_config.sample_width,
-            'num_channels': media_config.num_channels
+            'num_channels': media_config.num_channels,
+            'response_types': int(response_types)
         })
 
-    def _get_ws_auth_info(self):
+    def _get_ws_auth_info(self) -> dict:
         return {'Authorization': f'Bearer {self._ws_access_token}'}

@@ -16,7 +16,7 @@ def media_generator_wavefile(wav_path, chunk_duration):
     """
 
     # calculate chunk duration
-    # Note: assuming input file is a 16-bit mono 16000Hz WAV file
+    # Note: assuming input file is a 16-bit mono 16000Hz PCM Wave file
     chunk_size = int(chunk_duration * 2 * 16000)
 
     with open(str(wav_path), 'rb') as wav:
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # set access token
-    access_token = '<your-access-token>'
+    access_token = '<your_access_token>'
 
     # init verbit streaming client
     client = SpeechStreamClient(access_token=access_token)
