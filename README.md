@@ -20,18 +20,11 @@ See our [API docs](https://www.XXXX.ai/docs) for more information about the API 
 more python examples.
 
 
-## ----
-
-https://www.rev.ai/docs/streaming
-https://www.notion.so/verbit/ASR-Output-Format-38db55a1c3d54f30bcb78211d264952c
-
-## ----
-
 ## Installation
 
 To install the package via PyPi simply run:  ***TODO : Decide on package name***
 
-    <!-- pip install --upgrade verbit-speech-python -->
+    # pip install --upgrade verbit-speech-python
     pip install --upgrade verbit-streaming-sdk
 
 [comment]: <> (Install from source with:)
