@@ -337,10 +337,3 @@ class TestExampleClient(unittest.TestCase):
         example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
 
-
- ## -----------
-# Test covering internal-SDK:
-# TODO.
-
-# Test covering example-internal-SDK:
-# TODO.
