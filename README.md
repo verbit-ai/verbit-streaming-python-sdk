@@ -1,14 +1,33 @@
 # Verbit Streaming Python SDK
 
 ***TODO : 'CI Badge'***
+(badge fails, while repo is private for now, and no CI has been set up)
 [![CIRCLE-CI::verbit-ai](https://circleci.com/gh/verbit-ai/verbit-streaming-python-sdk/tree/master.svg?style=shield)](https://app.circleci.com/pipelines/github/verbit-ai/verbit-streaming-python-sdk)
 
 [comment: Or Github Actions setup..]
 
+Example: `Pylon` (with private API-token:status-only, since repo is private)
+
+* branch: `master`
+[![verbit-ai](https://circleci.com/gh/verbit-ai/pylon/tree/master.svg?style=shield&circle-token=de6a837438fb7efc31b8cb857b9304b0b1f0c09c)](https://app.circleci.com/pipelines/github/verbit-ai/pylon)
+
+ * branch: `none-existing`
+[![verbit-ai](https://circleci.com/gh/verbit-ai/pylon/tree/none-existing.svg?style=shield&circle-token=de6a837438fb7efc31b8cb857b9304b0b1f0c09c)](https://app.circleci.com/pipelines/github/verbit-ai/pylon)
+
+  * branch: RND-13654-event-bridge-client-roy : style `shield` (older circle-ci style)
+[![verbit-ai](https://circleci.com/gh/verbit-ai/pylon/tree/RND-13654-event-bridge-client-roy.svg?style=shield&circle-token=de6a837438fb7efc31b8cb857b9304b0b1f0c09c)](https://app.circleci.com/pipelines/github/verbit-ai/pylon)
+
+ * or style: `svg` (new default on circle-CI)
+   [![verbit-ai](https://circleci.com/gh/verbit-ai/pylon/tree/RND-13654-event-bridge-client-roy.svg?circle-token=de6a837438fb7efc31b8cb857b9304b0b1f0c09c)](https://app.circleci.com/pipelines/github/verbit-ai/pylon)
+
+ * branch: `RND-13454-add-git-info-roy`
+[![verbit-ai](https://circleci.com/gh/verbit-ai/pylon/tree/RND-13654-event-bridge-client-roy.svg?style=shield&circle-token=de6a837438fb7efc31b8cb857b9304b0b1f0c09c)](https://app.circleci.com/pipelines/github/verbit-ai/pylon)
+
+
 
 ## Purpose
 
-This package is the reference implementation for Verbit's Streaming API.
+This package is the __reference implementation__ for Verbit's Streaming API.
 
 It is a client SDK for streaming media to, and getting responses from Verbit's
 Speech Recognition services, via a standard WebSocket connection.
@@ -26,12 +45,11 @@ more python examples.
 
 To install the package via PyPi simply run:  ***TODO : Decide on package name***
 
-    # pip install --upgrade verbit-speech-python
     pip install --upgrade verbit-streaming-sdk
 
-[comment]: <> (Install from source with:)
+Install from source with:
 
-[comment]: <> (    python setup.py install)
+    python setup.py install
 
 ### Requirements
 
@@ -85,7 +103,7 @@ media_generator = media_generator_wavefile(media_path, CHUNK_DURATION_SECONDS)
 response_generator = client.start_stream(media_generator=media_generator)
 ```
 
-The resulting `response_generator` is another generator-function provided by the SDK, from which you can consume responses, there are generally two types of responses: captions and updating-transcriptions:
+The resulting `response_generator` is another generator-function provided by the SDK, for the client application to consume responses from. There are two types of responses: Captions and updating-transcriptions:
 [WIP]
 ```python
 # get transcription responses
@@ -96,70 +114,5 @@ for response in response_generator:
     print(alt0_transcript)
 ```
 
------
-[comment: future extension: remove for now...]
-
-cut cut cut ---
-------
-
-### Getting your transcript
-
-[comment: would we like to provide this??]
-Once your file is transcribed, you can get your transcript in a few different forms:
-
-```python
-# as text
-transcript_text = client.get_transcript_text(job.id)
-
-# as json
-transcript_json = client.get_transcript_json(job.id)
-
-# or as a python object
-transcript_object = client.get_transcript_object(job.id)
-```
-
-### Getting captions output
-
-[comment: would we like to provide this??]
-
-```python
-captions = client.get_captions(job.id, content_type=CaptionType.SRT)
-```
-
-### Streamed outputs
-
-
-
 ----
-## (REV) Streaming audio
-[comment: REV's example: a nice way to document the full 'on_*' functions]
-
-```python
-from rev_ai.streamingclient import RevAiStreamingClient
-from rev_ai.models import MediaConfig
-
-#on_error(error)
-#on_close(code, reason)
-#on_connected(id)
-
-config = MediaConfig()
-streaming_client = RevAiStreamingClient("ACCESS TOKEN",
-                                        config,
-                                        on_error=ERRORFUNC,
-                                        on_close=CLOSEFUNC,
-                                        on_connected=CONNECTEDFUNC)
-```
-
-`on_error`, `on_close`, and `on_connected` are optional parameters that are functions to be called when the websocket errors, closes, and connects respectively. The default `on_error` raises the error, `on_close` prints out the code and reason for closing, and `on_connected` prints out the job ID.
-If passing in custom functions, make sure you provide the right parameters. See the sample code for the parameters.
-
-Once you have a streaming client setup with a `MediaConfig` and access token, you can obtain a transcription generator of your audio. You can also use a custom vocabulary with your streaming job by supplying the optional `custom_vocabulary_id` when starting a connection!
-
-`response_generator` is a generator object that yields the transcription results of the audio including partial and final transcriptions. The `start` method creates a thread sending audio pieces from the `AUDIO_GENERATOR` to our
-[streaming] endpoint.
-
-If you want to end the connection early, you can!
-
-```python
-streaming_client.end()
-```
+End of file.
