@@ -98,9 +98,7 @@ def media_generator_wavefile(filename, chunk_duration):
             yield chunk_bytes
             sleep(chunk_duration)
 
-media_generator = media_generator_wavefile(
-    AUDIO_FILENAME,
-    CHUNK_DURATION_SECONDS)
+media_generator = media_generator_wavefile( AUDIO_FILENAME, CHUNK_DURATION_SECONDS)
 
 client = SpeechStreamClient(access_token="ACCESS TOKEN")
 
