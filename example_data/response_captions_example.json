@@ -1,0 +1,79 @@
+{
+   "response" : {
+      "type": "captions",
+      "id" : "3e5b73b6-510a-49b6-a274-68610147c58c",
+      "is_end_of_stream" : false,
+      "is_final" : true,
+      "speakers" : [
+         {
+            "id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+            "label" : null
+         }
+      ],
+      "alternatives" : [
+         {
+            "start" : 0.05,
+            "transcript" : "Male or just one moment, please.",
+            "end" : 3.83,
+            "items" : [
+               {
+                  "start" : 0.05,
+                  "end" : 0.35,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "value" : "Male"
+               },
+               {
+                  "end" : 0.44,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 0.35,
+                  "value" : "or"
+               },
+               {
+                  "end" : 0.83,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 0.65,
+                  "value" : "just"
+               },
+               {
+                  "end" : 3.2,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 2.99,
+                  "value" : "one"
+               },
+               {
+                  "end" : 3.47,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.2,
+                  "value" : "moment"
+               },
+               {
+                  "end" : 3.47,
+                  "kind" : "punct",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.47,
+                  "value" : ","
+               },
+               {
+                  "end" : 3.83,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.47,
+                  "value" : "please"
+               },
+               {
+                  "end" : 3.83,
+                  "kind" : "punct",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.83,
+                  "value" : "."
+               }
+            ]
+         }
+      ]
+   }
+}

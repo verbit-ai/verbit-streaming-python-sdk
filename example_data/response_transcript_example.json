@@ -1,0 +1,91 @@
+{
+   "response" : {
+      "type": "transcript",
+      "id" : "3e5b73b6-510a-49b6-a274-68610147c58c",
+      "is_end_of_stream" : false,
+      "is_final" : false,
+
+      "speakers": [
+         {
+            "id": "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+            "label": "Andrew James Viterbi"
+         },
+         {
+            "id": "282413d0-bcbe-4c74-ae17-fec8afa79253",
+            "label": "Edsger Wybe Dijkstra"
+         },
+         {
+            "id": "a62dc44c-032b-482b-ad6f-ffba4abef3dc",
+            "label": "Donald Ervin Knuth"
+         }
+      ],
+
+      "alternatives" : [
+         {
+            "start": 0.05,
+            "end": 2.38,
+
+            "transcript" : "I think we are now on record.",
+
+            "items" : [
+               {
+                  "start" : 0.05,
+                  "end" : 3.83,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "value" : "I"
+               },
+               {
+                  "end" : 0.44,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 0.35,
+                  "value" : "think"
+               },
+               {
+                  "end" : 0.83,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 0.65,
+                  "value" : "we"
+               },
+               {
+                  "end" : 3.2,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 2.99,
+                  "value" : "are"
+               },
+               {
+                  "end" : 3.47,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.2,
+                  "value" : "now"
+               },
+               {
+                  "end" : 3.47,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.47,
+                  "value" : "on"
+               },
+               {
+                  "end" : 3.83,
+                  "kind" : "text",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.47,
+                  "value" : "record"
+               },
+               {
+                  "end" : 3.83,
+                  "kind" : "punct",
+                  "speaker_id" : "4aaa0e5d-71db-4f8b-b6a1-2b2e4b48e95f",
+                  "start" : 3.83,
+                  "value" : "."
+               }
+            ]
+         }
+      ]
+   }
+}
