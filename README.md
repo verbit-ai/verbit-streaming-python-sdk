@@ -104,8 +104,8 @@ client = SpeechStreamClient(access_token="ACCESS TOKEN")
 
 response_generator = client.start_stream(media_generator=media_generator,
                                          media_config=MediaConfig(format='S16LE',      # signed 16-bit little-endian PCM
-                                         sample_rate=16000,   # in Hz
-                                         sample_width=2))      # in bytes
+                                                                  sample_rate=16000,   # in Hz
+                                                                  sample_width=2))      # in bytes
 ```
 
 The resulting `response_generator` is another generator-function provided by the SDK, for the client application to consume responses from. There are two types of responses: Captions and updating-transcriptions:
