@@ -114,105 +114,103 @@ class TestClientSDK(unittest.TestCase):
             with self.assertRaises(RetryError):
                 _ = client.start_stream(media_generator=self.valid_media_generator)
 
-    # def test_close_unexpected_code(self):  # _Sometimes_ fails! since - media thread fails first.
-    #     """CLOSE OPCODE in middle, with unexpected code"""
+    def test_close_unexpected_code(self):  # _Sometimes_ fails! since - media thread fails first.
+        """CLOSE OPCODE in middle, with unexpected code"""
 
-    #     # mock client logger
-    #     self.client._logger.warning = MagicMock()
+        # mock client logger
+        self.client._logger.warning = MagicMock()
 
-    #     self._test_close_common(self.UNEXPECTED_CLOSE_MSG)
+        self._test_close_common(self.UNEXPECTED_CLOSE_MSG)
 
-    #     # assert client warning on unexpected close code
-    #     self.assertTrue('Unexpected close code' in self.client._logger.warning.call_args_list[0][0][0])
+        # assert client warning on unexpected close code
+        self.assertTrue('Unexpected close code' in self.client._logger.warning.call_args_list[0][0][0])
 
-    #     # assert client closed after server closed
-    #     self.client._ws_client.close.assert_called_once()
+        # assert client closed after server closed
+        self.client._ws_client.close.assert_called_once()
 
-    #     # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
-    #     self.client._ws_client.send.assert_not_called()
+        # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
+        self.client._ws_client.send.assert_not_called()
 
-    # def test_close_invalid_utf8(self):
-    #     """CLOSE OPCODE in middle with invalid utf8"""
+    def test_close_invalid_utf8(self):
+        """CLOSE OPCODE in middle with invalid utf8"""
 
-    #     # mock client logger
-    #     self.client._logger.exception = MagicMock()
+        # mock client logger
+        self.client._logger.exception = MagicMock()
 
-    #     self._test_close_common(self.INVALID_UTF8_CLOSE_MSG)
+        self._test_close_common(self.INVALID_UTF8_CLOSE_MSG)
 
-    #     # assert client warning on unexpected close code
-    #     self.assertTrue('WebSocket closed with invalid payload' in self.client._logger.exception.call_args_list[0][0][0])
+        # assert client warning on unexpected close code
+        self.assertTrue('WebSocket closed with invalid payload' in self.client._logger.exception.call_args_list[0][0][0])
 
-    #     # assert client closed after server closed
-    #     self.client._ws_client.close.assert_called_once()
+        # assert client closed after server closed
+        self.client._ws_client.close.assert_called_once()
 
-    #     # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
-    #     self.client._ws_client.send.assert_not_called()
+        # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
+        self.client._ws_client.send.assert_not_called()
 
-    # def test_data_ended_without_EOS(self):
+    def test_data_ended_without_EOS(self):
 
-    #     # mock websocket receive data func
-    #     side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-    #                    (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1'])]
-    #     self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
+        # mock websocket receive data func
+        side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                       (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1'])]
+        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
-    #     # start stream and expect StopIteration on third `next` call on generator
-    #     response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
-    #     next(response_generator)
-    #     next(response_generator)
-    #     with self.assertRaises(Exception):
-    #         next(response_generator)
+        # start stream and expect StopIteration on third `next` call on generator
+        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
+        next(response_generator)
+        next(response_generator)
+        with self.assertRaises(Exception):
+            next(response_generator)
 
-    #     # assert client closed after server closed
-    #     self.client._ws_client.close.assert_called_once()
+        # assert client closed after server closed
+        self.client._ws_client.close.assert_called_once()
 
-    # def test_missing_required_init_params(self):
+    def test_missing_required_init_params(self):
 
-    #     with self.assertRaises(ValueError):
-    #         SpeechStreamClient(stream_id=self.stream_id, access_token=None)
-    #     with self.assertRaises(ValueError):
-    #         SpeechStreamClient(stream_id=None, access_token=self.access_token)
+        with self.assertRaises(ValueError):
+            SpeechStreamClient(access_token=None)
 
-    # def test_media_thread_exceptions(self):
-    #     """Example of testing media errors on the media thread."""
+    def test_media_thread_exceptions(self):
+        """Example of testing media errors on the media thread."""
 
-    #     # init client
-    #     client = SpeechStreamClient(access_token=self.access_token, stream_id=self.stream_id, on_media_error=MagicMock())
+        # init client
+        client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
 
-    #     ex = RuntimeError('Testing error propagation')
+        ex = RuntimeError('Testing error propagation')
 
-    #     def evil_media_gen():
-    #         yield 'fake'
-    #         raise ex
+        def evil_media_gen():
+            yield 'fake'
+            raise ex
 
-    #     # mock
-    #     client._ws_client.connect = MagicMock()
-    #     client._ws_client.send_binary = MagicMock()
-    #     client._ws_client.send = MagicMock()
+        # mock
+        client._ws_client.connect = MagicMock()
+        client._ws_client.send_binary = MagicMock()
+        client._ws_client.send = MagicMock()
 
-    #     # start evil stream
-    #     client.start_stream(media_generator=evil_media_gen())
+        # start evil stream
+        client.start_stream(media_generator=evil_media_gen())
 
-    #     # assert we get the expected exception
-    #     time.sleep(0.01)
-    #     client._on_media_error.assert_called_with(ex)
+        # assert we get the expected exception
+        time.sleep(0.01)
+        client._on_media_error.assert_called_with(ex)
 
-    # def test_bad_media_generator(self):
+    def test_bad_media_generator(self):
 
-    #     # init client
-    #     client = SpeechStreamClient(access_token=self.access_token, stream_id=self.stream_id, on_media_error=MagicMock())
-    #     self._patch_client(client)
+        # init client
+        client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
+        self._patch_client(client)
 
-    #     # invalid media generator
-    #     invalid_media_generator = range(10)
+        # invalid media generator
+        invalid_media_generator = range(10)
 
-    #     # start (invalid) stream
-    #     client.start_stream(media_generator=invalid_media_generator)
+        # start (invalid) stream
+        client.start_stream(media_generator=invalid_media_generator)
 
-    #     # assert we get a type error from media sending thread
-    #     time.sleep(0.01)
-    #     client._on_media_error.assert_called_once()
-    #     first_call_arg = client._on_media_error.call_args[0][0]
-    #     self.assertTrue(isinstance(first_call_arg, TypeError))
+        # assert we get a type error from media sending thread
+        time.sleep(0.01)
+        client._on_media_error.assert_called_once()
+        first_call_arg = client._on_media_error.call_args[0][0]
+        self.assertTrue(isinstance(first_call_arg, TypeError))
 
     # ======= #
     # Helpers #
@@ -246,10 +244,12 @@ class TestClientSDK(unittest.TestCase):
 
         def mock_send_binary(chunk):
             if not client._ws_client.connected:
-                raise ConnectionError('Mocked disconnected ws.')
+                raise ConnectionError('Mocked WS disconnected.')
 
-            # if chunk has no len (means it's not bytes) - this will raise an exception
+            # if chunk has no 'len' (means it's not bytes) -> will raise an exception
             len(chunk)
+
+            # if we've reached here, return default Mock() behavior.
 
             return unittest.mock.DEFAULT
 
