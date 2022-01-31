@@ -334,7 +334,7 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
     @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
     def test_example_ws_retry_and_connect(self):
-        example_client.example_speech_client(self.access_token, self.media_path)
+        example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
 
 
