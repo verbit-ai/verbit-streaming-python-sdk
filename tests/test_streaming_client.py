@@ -85,8 +85,8 @@ class TestClientSDK(unittest.TestCase):
         # self.client._ws_client.send.assert_called_with("EOS")
         # {"event": "EOS", "payload": {}}
         arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
-        self.assertIsInstance(arg0_client_eos_send, int)
-        self.assertIn('WOS', self.client._ws_client.send.call_args_list[0][0][0])
+        self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send)}')
+        self.assertIn('EOS', arg0_client_eos_send)
 
         # assert client closed after EOS response
         self.client._ws_client.close.assert_called_once()
