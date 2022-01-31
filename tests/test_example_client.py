@@ -1,5 +1,5 @@
 # import time
-# import json
+import json
 # import struct
 import unittest
 import websocket
@@ -301,7 +301,9 @@ def mock_connect_after_rejections(self, *args, **kwargs):
 def mock_start_stream(self, media_generator):
     def mocked_responses():
         for i in range(3):
-            yield RESPONSES['happy_json_resp0']
+            resp_bytes = RESPONSES['happy_json_resp0']
+            resp = json.loads(resp_bytes.decode('utf-8'))
+            yield resp
     return mocked_responses()
 
 
@@ -314,6 +316,7 @@ class TestExampleClient(unittest.TestCase):
 
 # from verbit.streaming_client import SpeechStreamClient
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
+    # @patch('verbit.streaming_client.SpeechStreamClient.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
     def test_example_client_mocked_streams(self):
         example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception

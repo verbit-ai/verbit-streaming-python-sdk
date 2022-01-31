@@ -17,10 +17,9 @@ def media_generator_wavefile(wav_path, chunk_duration):
     Example generator, for streaming a 'WAV' audio-file, simulating realtime playback-rate using sleep()
     """
 
-    # calculate chunk duration
+    # calculate chunk size
     # Note: assuming input file is a 16-bit mono 16000Hz WAV file
-    chunk_size = int(chunk_duration * 16000)
-    # ^ BUGFIX: just tested: wav.read() reads 'frames' where a PCM 'frame' - is a sample, which is already 'samplewidth' (2) bytes
+    chunk_size = int(chunk_duration * 2 * 16000)
 
     with open(str(wav_path), 'rb') as wav:
         while chunk_bytes := wav.read(chunk_size):
@@ -44,6 +43,9 @@ def example_streaming_client(access_token, media_path):
     # get transcription responses
     print('Listening for responses ...')
     for response in response_generator:
+        print('reSSS!!!')
+        print(response)
+        print(type(response))
         alternatives = response['response']['alternatives']
         alt0_transcript = alternatives[0]['transcript']
         print(alt0_transcript)
