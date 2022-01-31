@@ -42,12 +42,9 @@ if __name__ == '__main__':
     media_generator = media_generator_wavefile(args.media_path, CHUNK_DURATION_SECONDS)
 
     # upgrade connection to websocket and start audio stream
-    print('Connecting ...')
     response_generator = client.start_stream(media_generator=media_generator)
-    print('Connected!')
 
     # get transcription responses
-    print('Listening for responses ...')
     for response in response_generator:
         alternatives = response['response']['alternatives']
         alt0_transcript = alternatives[0]['transcript']

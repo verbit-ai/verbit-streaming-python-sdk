@@ -57,7 +57,8 @@ class SpeechStreamClient:
         self._ws_access_token = access_token
 
         # internal
-        self._init_logger()
+        self._logger = None
+        self.set_logger()
         self._media_sender_thread = None
 
         # error handling
@@ -92,14 +93,16 @@ class SpeechStreamClient:
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the server
 
-        :returns a generator whih yields speech recognition responses (transcript, captions or both)
+        :return: a generator whih yields speech recognition responses (transcript, captions or both)
         """
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
 
         # connect to websocket
+        self._logger.info(f'Connecting WebSocket with {self.ws_url}')
         self._connect_websocket(media_config=media_config, response_types=response_types)
+        self._logger.info('WebSocket connected!')
 
         # start media sender thread
         self._media_sender_thread = Thread(
@@ -125,28 +128,39 @@ class SpeechStreamClient:
         # send to server
         self._ws_client.send(msg_json)
 
+    def set_logger(self, logger: logging.Logger = None):
+        """
+        Set the streaming client logger object to an external logging.Logger
+
+        :param logger: the external logger to use as the streaming client's logger
+        :return:
+        """
+
+        # if logger object not provided
+        if logger is None:
+
+            # create logger
+            logger = logging.getLogger(self.__class__.__name__)
+            logger.setLevel(logging.DEBUG)
+
+            # create console handler and set level to debug
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+
+            # create formatter
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+            # add formatter to ch
+            ch.setFormatter(formatter)
+
+            # add ch to logger
+            logger.addHandler(ch)
+
+        self._logger = logger
+
     # ======== #
     # Internal #
     # ======== #
-    def _init_logger(self):
-
-        # create logger
-        self._logger = logging.getLogger(self.__class__.__name__)
-        self._logger.setLevel(logging.DEBUG)
-
-        # create console handler and set level to debug
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-
-        # create formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-        # add formatter to ch
-        ch.setFormatter(formatter)
-
-        # add ch to logger
-        self._logger.addHandler(ch)
-
     def _connect_websocket(self, media_config: MediaConfig, response_types: ResponseType):
         """
         Connect to the URL returned by
@@ -193,6 +207,8 @@ class SpeechStreamClient:
 
         try:
 
+            self._logger.debug('Starting media stream')
+
             # iterate media generator
             for chunk in media_generator:
 
@@ -210,7 +226,7 @@ class SpeechStreamClient:
         """
         Generator function for yielding responses.
 
-        For available response structures, see: ... # TODO : where to put documentation?
+        For available response structures, see: https://verbit.co/api_docs/index.html
         """
 
         # ws is already connected at this point, see: start_stream()
@@ -221,7 +237,10 @@ class SpeechStreamClient:
 
         try:
 
-            while not received_close:
+            self._logger.debug('Listening for responses ...')
+
+            # while websocket client is connected and close message was not received
+            while not received_close and self._ws_client.connected:
 
                 # read data from websocket
                 opcode, data = self._ws_client.recv_data()
@@ -253,8 +272,6 @@ class SpeechStreamClient:
             if self._ws_client.connected:
                 self._logger.debug(f'Closing WebSocket')
                 self._ws_client.close(STATUS_GOING_AWAY)
-            else:
-                self._logger.debug(f'WebSocket already closed')
 
     def _handle_socket_close(self, data):
         """
@@ -289,7 +306,8 @@ class SpeechStreamClient:
             'sample_rate': media_config.sample_rate,
             'sample_width': media_config.sample_width,
             'num_channels': media_config.num_channels,
-            'response_types': int(response_types)
+            'transcript': bool(response_types & ResponseType.Transcript),
+            'captions': bool(response_types & ResponseType.Captions),
         })
 
     def _get_ws_auth_info(self) -> dict:
