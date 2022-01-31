@@ -300,8 +300,8 @@ def mock_connect_after_rejections(self, *args, **kwargs):
 
 def mock_start_stream(self, media_generator):
     def mocked_responses():
-            for i in range(3):
-                yield RESPONSES['happy_json_resp0']
+        for i in range(3):
+            yield RESPONSES['happy_json_resp0']
     return mocked_responses()
 
 
@@ -313,10 +313,10 @@ class TestExampleClient(unittest.TestCase):
         self.media_path = path.expanduser('~/resources/unit/speech_api/audio/4855257_16k_10s.wav')
 
 # from verbit.streaming_client import SpeechStreamClient
-    @patch('stream_api.client_sdk.speech_stream_client.SpeechStreamClient.start_stream', mock_start_stream)
+    @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
-        example_client.example_speech_client(self.stream_id, self.access_token, self.media_path)
-        self.assertTrue(True)  # completion with no exception
+        example_client.example_speech_client(self.access_token, self.media_path)
+        # completion with no exception
 
 
     # @patch('websocket.WebSocket.connect', mock_connect_ok_with_sideeffect)
