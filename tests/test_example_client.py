@@ -5,7 +5,7 @@ import unittest
 import websocket
 import pkg_resources
 from os import path
-# from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 # from tenacity import RetryError
 
 # from verbit.streaming_client import SpeechStreamClient
