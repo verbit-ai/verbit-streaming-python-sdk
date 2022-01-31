@@ -80,10 +80,7 @@ class TestClientSDK(unittest.TestCase):
             self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
             time.sleep(0.01)
 
-        # assert client sent media EOS message
-        # self.client._ws_client.send.assert_called_with("EOS")
-        # self.client._ws_client.send.assert_called_with("EOS")
-        # {"event": "EOS", "payload": {}}
+        # client close triggers sending an EOS message:
         arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send)}')
         self.assertIn('EOS', arg0_client_eos_send)
@@ -94,16 +91,16 @@ class TestClientSDK(unittest.TestCase):
         # check that ws is no longer connected
         self.assertFalse(self.client._ws_client.connected)
 
-    # def test_close_response(self):
-    #     """CLOSE OPCODE Arrived before a response with EOS, that is, stream stopped in the middle."""
+    def test_close_response(self):
+        """CLOSE OPCODE Arrived before a response with EOS, that is, stream stopped in the middle."""
 
-    #     self._test_close_common(self.HAPPY_CLOSE_MSG)
+        self._test_close_common(self.HAPPY_CLOSE_MSG)
 
-    #     # assert client closed after server closed
-    #     self.client._ws_client.close.assert_called_once()
+        # assert client closed after server closed
+        self.client._ws_client.close.assert_called_once()
 
-    #     # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
-    #     self.client._ws_client.send.assert_not_called()
+        # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
+        self.client._ws_client.send.assert_not_called()
 
     # def test_ws_connect_refuses_raises(self):
     #     """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
@@ -218,21 +215,21 @@ class TestClientSDK(unittest.TestCase):
     #     first_call_arg = client._on_media_error.call_args[0][0]
     #     self.assertTrue(isinstance(first_call_arg, TypeError))
 
-    # # ======= #
-    # # Helpers #
-    # # ======= #
-    # def _test_close_common(self, close_msg):
+    # ======= #
+    # Helpers #
+    # ======= #
+    def _test_close_common(self, close_msg):
 
-    #     # mock websocket receive data func
-    #     side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-    #                    (websocket.ABNF.OPCODE_CLOSE, close_msg)]
-    #     self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
+        # mock websocket receive data func
+        side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                       (websocket.ABNF.OPCODE_CLOSE, close_msg)]
+        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
-    #     # start streaming mocked media (and mock connection)
-    #     response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
-    #     for i, response in enumerate(response_generator):
-    #         self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
-    #         time.sleep(0.0001)  # sleep less than media streaming time
+        # start streaming mocked media (and mock connection)
+        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
+        for i, response in enumerate(response_generator):
+            self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
+            time.sleep(0.0001)  # sleep less than media streaming time
 
     @staticmethod
     def _fake_media_generator(num_samples, num_chunks=0, delay_sec=0.1):
