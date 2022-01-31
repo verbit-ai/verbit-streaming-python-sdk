@@ -77,30 +77,38 @@ Current SDK version only supports 16-bit signed-little-endian PCM input from thi
 
 The following example streams audio from a PCM-`wave` file:
 
-```python
+```example_client_wav.py
 from time import sleep
 from verbit.streaming_client import SpeechStreamClient
 
 CHUNK_DURATION_SECONDS = 0.1
-media_path = 'example.wav'
+AUDIO_FILENAME = 'example.wav'
 
-def media_generator_wavefile(wav_path, chunk_duration):
+def media_generator_wavefile(filename, chunk_duration):
     """
     Example generator, for streaming a 'WAV' audio-file, simulating realtime playback-rate using sleep()
     """
 
     # calculate chunk size
     # Note: assuming input file is a 16-bit mono 16000Hz WAV file
-    chunk_size = int(chunk_duration * 16000)
+    chunk_size = int(chunk_duration * 2 * 16000)
 
-    with open(str(wav_path), 'rb') as wav:
+    with open(filename, 'rb') as wav:
         while chunk_bytes := wav.read(chunk_size):
             yield chunk_bytes
             sleep(chunk_duration)
 
-media_generator = media_generator_wavefile(media_path, CHUNK_DURATION_SECONDS)
+media_generator = media_generator_wavefile(
+    AUDIO_FILENAME,
+    CHUNK_DURATION_SECONDS)
 
-response_generator = client.start_stream(media_generator=media_generator)
+client = SpeechStreamClient(access_token="ACCESS TOKEN")
+
+response_generator = client.start_stream(
+    media_generator=media_generator,
+    media_config=MediaConfig(format='S16LE',      # signed 16-bit little-endian PCM
+                             sample_rate=16000,   # in Hz
+                             sample_width=2))      # in bytes
 ```
 
 The resulting `response_generator` is another generator-function provided by the SDK, for the client application to consume responses from. There are two types of responses: Captions and updating-transcriptions:
@@ -112,6 +120,29 @@ for response in response_generator:
     alternatives = response['response']['alternatives']
     alt0_transcript = alternatives[0]['transcript']
     print(alt0_transcript)
+```
+
+### MediaConfig
+
+TBD!
+
+```python
+class MediaConfig:
+    format: str = 'S16LE'       # signed 16-bit little-endian PCM
+    sample_rate: int = 16000    # in Hz
+    sample_width: int = 2       # in bytes
+    num_channels: int = 1
+```
+### Response Types
+
+1. Transcriptions:
+
+1. Captions
+
+### Running tests:
+```
+pip install -r tests/requirements.txt  # pytest
+pytest
 ```
 
 ----
