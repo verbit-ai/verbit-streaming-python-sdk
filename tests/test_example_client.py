@@ -315,7 +315,7 @@ class TestExampleClient(unittest.TestCase):
 # from verbit.streaming_client import SpeechStreamClient
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
-        example_client.example_speech_client(self.access_token, self.media_path)
+        example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
 
 
