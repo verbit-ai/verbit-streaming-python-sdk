@@ -8,17 +8,19 @@
 
 ## Purpose
 
-This package is a client SDK for streaming media to, and getting responses from Verbit's
+This package is the reference implementation for Verbit's Streaming API.
+
+It is a client SDK for streaming media to, and getting responses from Verbit's
 Speech Recognition services, via a standard WebSocket connection.
 
 You can use it as-is (see installation instructions below), or use it as
 a Python implementation example, and implement the client yourself.
 
+
 ## Documentation
 
 See our [API docs](https://www.XXXX.ai/docs) for more information about the API and
 more python examples.
-
 
 ## Installation
 
@@ -44,72 +46,65 @@ Once Create a client with the
 generated Access Token:
 
 ```python
-from rev_ai import apiclient
+from verbit.streaming_client import SpeechStreamClient
 
-# create your client
-client = apiclient.RevAiAPIClient("ACCESS TOKEN")
+client = SpeechStreamClient(access_token="ACCESS TOKEN")
 ```
 
-### Sending a file
+### Streamed audio and responses:
 
-Once you've set up your client with your Access Token sending a file is easy!
+Create a generator function yielding audio chunks of type `byte` in order to provide an audio-stream to the client-SDK.
+
+Current SDK version only supports 16-bit signed-little-endian PCM input from this generator.
+
+The following example streams audio from a PCM-`wave` file:
 
 ```python
-# you can send a local file
-job = client.submit_job_local_file("FILE PATH")
+from time import sleep
+from verbit.streaming_client import SpeechStreamClient
 
-# or send a link to the file you want transcribed
-job = client.submit_job_url("https://example.com/file-to-transcribe.mp3")
+CHUNK_DURATION_SECONDS = 0.1
+media_path = 'example.wav'
+
+def media_generator_wavefile(wav_path, chunk_duration):
+    """
+    Example generator, for streaming a 'WAV' audio-file, simulating realtime playback-rate using sleep()
+    """
+
+    # calculate chunk size
+    # Note: assuming input file is a 16-bit mono 16000Hz WAV file
+    chunk_size = int(chunk_duration * 16000)
+
+    with open(str(wav_path), 'rb') as wav:
+        while chunk_bytes := wav.read(chunk_size):
+            yield chunk_bytes
+            sleep(chunk_duration)
+
+media_generator = media_generator_wavefile(media_path, CHUNK_DURATION_SECONDS)
+
+response_generator = client.start_stream(media_generator=media_generator)
 ```
 
-`job` will contain all the information normally found in a successful response from our
-[Submit Job](https://www.rev.ai/docs#operation/SubmitTranscriptionJob) endpoint.
-
-If you want to get fancy, both send job methods take `metadata`, `callback_url`,
-`skip_diarization`, `skip_punctuation`, `speaker_channels_count`, `custom_vocabularies`, `filter_profanity`, `remove_disfluencies`, `delete_after_seconds`, `language`, and `custom_vocabulary_id` as optional parameters, these are described in the request body of
-the [Submit Job](https://www.rev.ai/docs#operation/SubmitTranscriptionJob) endpoint.
-
-### Checking your file's status
-
-You can check the status of your transcription job using its `id`
-
+The resulting `response_generator` is another generator-function provided by the SDK, from which you can consume responses, there are generally two types of responses: captions and updating-transcriptions:
+[WIP]
 ```python
-job_details = client.get_job_details(job.id)
+# get transcription responses
+print('Listening for responses ...')
+for response in response_generator:
+    alternatives = response['response']['alternatives']
+    alt0_transcript = alternatives[0]['transcript']
+    print(alt0_transcript)
 ```
 
-`job_details` will contain all information normally found in a successful response from
-our [Get Job](https://www.rev.ai/docs#operation/GetJobById) endpoint
+-----
+[comment: future extension: remove for now...]
 
-### Checking multiple files
-
-You can retrieve a list of transcription jobs with optional parameters
-
-```python
-jobs = client.get_list_of_jobs()
-
-# limit amount of retrieved jobs
-jobs = client.get_list_of_jobs(limits=3)
-
-# get jobs starting after a certain job id
-jobs = client.get_list_of_jobs(starting_after='Umx5c6F7pH7r')
-```
-
-`jobs` will contain a list of job details having all information normally found in a successful response
-from our [Get List of Jobs](https://www.rev.ai/docs#operation/GetListOfJobs) endpoint
-
-### Deleting a job
-
-You can delete a transcription job using its `id`
-
-```python
-client.delete_job(job.id)
-```
-
- All data related to the job, such as input media and transcript, will be permanently deleted.
- A job can only by deleted once it's completed (either with success or failure).
+cut cut cut ---
+------
 
 ### Getting your transcript
 
+[comment: would we like to provide this??]
 Once your file is transcribed, you can get your transcript in a few different forms:
 
 ```python
@@ -123,35 +118,21 @@ transcript_json = client.get_transcript_json(job.id)
 transcript_object = client.get_transcript_object(job.id)
 ```
 
-Both the json and object forms contain all the formation outlined in the response
-of the [Get Transcript](https://www.rev.ai/docs#operation/GetTranscriptById) endpoint
-when using the json response schema. While the text output is a string containing
-just the text of your transcript
-
 ### Getting captions output
 
-You can also get captions output from the SDK. We offer both SRT and VTT caption formats.
-If you submitted your job as speaker channel audio then you must also provide a `channel_id` to be captioned:
+[comment: would we like to provide this??]
 
 ```python
-captions = client.get_captions(job.id, content_type=CaptionType.SRT, channel_id=None)
+captions = client.get_captions(job.id, content_type=CaptionType.SRT)
 ```
 
 ### Streamed outputs
 
-Any output format can be retrieved as a stream. In these cases we return the raw http response to you. The output can be retrieved via `response.content`, `response.iter_lines()` or `response.iter_content()`.
 
-```python
-text_stream = client.get_transcript_text_as_stream(job.id)
 
-json_stream = client.get_transcript_json_as_stream(job.id)
-
-captions_stream = client.get_captions_as_stream(job.id)
-```
-
-## Streaming audio
-
-In order to stream audio, you will need to setup a streaming client and a media configuration for the audio you will be sending.
+----
+## (REV) Streaming audio
+[comment: REV's example: a nice way to document the full 'on_*' functions]
 
 ```python
 from rev_ai.streamingclient import RevAiStreamingClient
@@ -174,12 +155,6 @@ If passing in custom functions, make sure you provide the right parameters. See 
 
 Once you have a streaming client setup with a `MediaConfig` and access token, you can obtain a transcription generator of your audio. You can also use a custom vocabulary with your streaming job by supplying the optional `custom_vocabulary_id` when starting a connection!
 
-More optional parameters can be supplied when starting a connection, these are `metadata`, `filter_profanity`, `remove_disfluencies`, `delete_after_seconds`, and `detailed_partials`. For a description of these optional parameters look at our [streaming documentation](https://www.rev.ai/docs/streaming#section/WebSocket-Endpoint).
-
-```python
-response_generator = streaming_client.start(AUDIO_GENERATOR, custom_vocabulary_id="CUSTOM VOCAB ID")
-```
-
 `response_generator` is a generator object that yields the transcription results of the audio including partial and final transcriptions. The `start` method creates a thread sending audio pieces from the `AUDIO_GENERATOR` to our
 [streaming] endpoint.
 
@@ -188,55 +163,3 @@ If you want to end the connection early, you can!
 ```python
 streaming_client.end()
 ```
-
-Otherwise, the connection will end when the server obtains an "EOS" message.
-
-### Submitting custom vocabularies
-
-In addition to passing custom vocabularies as parameters in the async API client, you can create and submit your custom vocabularies independently and directly to the custom vocabularies API, as well as check on their progress.
-
-Primarily, the custom vocabularies client allows you to submit and preprocess vocabularies for use with the streaming client, in order to have streaming jobs with custom vocabularies!
-
-In this example you see how to construct custom vocabulary objects, submit them to the API, and check on their progress and metadata!
-
-```python
-from rev_ai import custom_vocabularies_client
-from rev_ai.models import CustomVocabulary
-
-# Create a client
-client = custom_vocabularies_client.RevAiCustomVocabulariesClient("ACCESS TOKEN")
-
-# Construct a CustomVocabulary object using your desired phrases
-custom_vocabulary = CustomVocabulary(["Patrick Henry Winston", "Robert C Berwick", "Noam Chomsky"])
-
-# Submit the CustomVocabulary
-custom_vocabularies_job = client.submit_custom_vocabularies([custom_vocabulary])
-
-# View the job's progress
-job_state = client.get_custom_vocabularies_information(custom_vocabularies_job['id'])
-
-# Get list of previously submitted custom vocabularies
-custom_vocabularies_jobs = client.get_list_of_custom_vocabularies()
-
-# Delete the CustomVocabulary
-client.delete_custom_vocabulary(custom_vocabularies_job['id'])
-```
-
-For more details, check out the custom vocabularies example in our [examples](https://github.com/revdotcom/revai-python-sdk/tree/develop/examples).
-
-# For Rev.ai Python SDK Developers
-
-Remember in your development to follow the PEP8 style guide. Your code editor likely has Python PEP8 linting packages which can assist you in your development.
-
-# Local testing instructions
-
-Prequisites: virtualenv, tox
-
-To test locally use the following commands from the repo root
-
-    virtualenv ./sdk-test
-    . ./sdk-test/bin/activate
-    tox
-
-This will locally run the test suite, and saves significant dev time over
-waiting for the CI tool to pick it up.
