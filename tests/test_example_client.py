@@ -308,11 +308,12 @@ def mock_start_stream(self, media_generator):
 
 
 class TestExampleClient(unittest.TestCase):
-    # from stream_api.client_sdk.example_client import example_speech_client
+
     def setUp(self):
-        # fake
+
         self.access_token = "fake-token"
-        self.media_path = path.expanduser('~/resources/unit/speech_api/audio/4855257_16k_10s.wav')
+        # self.media_path = path.expanduser('~/resources/unit/speech_api/audio/4855257_16k_10s.wav')
+        self.media_path = path.expanduser('no_file.wav')
 
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
