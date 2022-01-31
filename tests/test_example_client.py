@@ -4,7 +4,7 @@
 import unittest
 import websocket
 import pkg_resources
-# from os import path
+from os import path
 # from unittest.mock import MagicMock, patch
 # from tenacity import RetryError
 
