@@ -173,7 +173,8 @@ class SpeechStreamClient:
         """Generator function for yielding responses."""
 
         # ws is already connected at this point, see: start_stream()
-        assert self._ws_client.connected, 'WebSocket client is disconnected!'
+        if not self._ws_client.connected:
+            raise RuntimeError('WebSocket client is disconnected!')
 
         # init final response flag
         received_final_response = False

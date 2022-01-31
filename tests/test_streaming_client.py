@@ -123,7 +123,7 @@ class TestClientSDK(unittest.TestCase):
         self._test_close_common(self.UNEXPECTED_CLOSE_MSG)
 
         # assert client warning on unexpected close code
-        self.assertTrue('Unexpected close code' in self.client._logger.warning.call_args_list[0][0][0])
+        self.assertIn('Unexpected close code', self.client._logger.warning.call_args_list[0][0][0])
 
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
@@ -140,7 +140,7 @@ class TestClientSDK(unittest.TestCase):
         self._test_close_common(self.INVALID_UTF8_CLOSE_MSG)
 
         # assert client warning on unexpected close code
-        self.assertTrue('WebSocket closed with invalid payload' in self.client._logger.exception.call_args_list[0][0][0])
+        self.assertIn('WebSocket closed with invalid payload', self.client._logger.exception.call_args_list[0][0][0])
 
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
@@ -210,7 +210,8 @@ class TestClientSDK(unittest.TestCase):
         time.sleep(0.01)
         client._on_media_error.assert_called_once()
         first_call_arg = client._on_media_error.call_args[0][0]
-        self.assertTrue(isinstance(first_call_arg, TypeError))
+        self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
+
 
     # ======= #
     # Helpers #
