@@ -311,37 +311,34 @@ class TestExampleClient(unittest.TestCase):
     # from stream_api.client_sdk.example_client import example_speech_client
     def setUp(self):
         # fake
-        self.access_token = "ABCD"
+        self.access_token = "fake-token"
         self.media_path = path.expanduser('~/resources/unit/speech_api/audio/4855257_16k_10s.wav')
 
-# from verbit.streaming_client import SpeechStreamClient
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
-    # @patch('verbit.streaming_client.SpeechStreamClient.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
     def test_example_client_mocked_streams(self):
         example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
 
+    @patch('websocket.WebSocket.connect', mock_connect_ok_with_sideeffect)
+    @patch('websocket.WebSocket.send_binary', MagicMock)
+    @patch('websocket.WebSocket.send', MagicMock)
+    @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
+    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
+    def test_example_client_mocked_ws(self):
+        example_client.example_streaming_client(self.access_token, self.media_path)
+        # completion with no exception
 
-    # @patch('websocket.WebSocket.connect', mock_connect_ok_with_sideeffect)
-    # @patch('websocket.WebSocket.send_binary', MagicMock)
-    # @patch('websocket.WebSocket.send', MagicMock)
-    # @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
-    # @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
-    # def test_example_client_mocked_ws(self):
-    #     example_client.example_speech_client(self.stream_id, self.access_token, self.media_path)
-    #     self.assertTrue(True)  # completion with no exception
-
-    # @patch('websocket.WebSocket.connect', mock_connect_after_rejections)
-    # @patch('websocket.WebSocket.send_binary', MagicMock)
-    # @patch('websocket.WebSocket.send', MagicMock)
-    # @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
-    # @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
-    # def test_example_ws_retry_and_connect(self):
-    #     example_client.example_speech_client(self.stream_id, self.access_token, self.media_path)
-    #     self.assertTrue(True)  # completion with no exception
+    @patch('websocket.WebSocket.connect', mock_connect_after_rejections)
+    @patch('websocket.WebSocket.send_binary', MagicMock)
+    @patch('websocket.WebSocket.send', MagicMock)
+    @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
+    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
+    def test_example_ws_retry_and_connect(self):
+        example_client.example_speech_client(self.access_token, self.media_path)
+        # completion with no exception
 
 
-# -----------
+ ## -----------
 # Test covering internal-SDK:
 # TODO.
 

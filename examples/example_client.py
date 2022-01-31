@@ -43,9 +43,6 @@ def example_streaming_client(access_token, media_path):
     # get transcription responses
     print('Listening for responses ...')
     for response in response_generator:
-        print('reSSS!!!')
-        print(response)
-        print(type(response))
         alternatives = response['response']['alternatives']
         alt0_transcript = alternatives[0]['transcript']
         print(alt0_transcript)
