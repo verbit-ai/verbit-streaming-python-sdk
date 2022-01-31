@@ -195,6 +195,10 @@ class SpeechStreamClient:
                     # update final response flag
                     received_final_response = resp['response'].get('is_end_of_stream', False)
 
+                    # explicitly close on final response:
+                    # since the 'finally' block will only run at some system dependant cleanup time.
+                    if received_final_response:
+                        self._close_ws()
                     yield resp
 
                 # message is close signal
@@ -209,13 +213,18 @@ class SpeechStreamClient:
                     # Not an error, future server versions might use more opcodes.
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
         finally:
+            self._close_ws()
 
-            # disconnect if still connected
-            if self._ws_client.connected:
-                self._logger.debug(f'Closing WebSocket')
-                self._ws_client.close(STATUS_GOING_AWAY)
-            else:
-                self._logger.debug(f'WebSocket already closed')
+    def _close_ws(self):
+        """Close WebSocket if still connected."""
+        print('____WWW CLose!s')
+        if self._ws_client.connected:
+            self._logger.debug(f'Closing WebSocket')
+            self._ws_client.close(STATUS_GOING_AWAY)
+        else:
+            self._logger.debug(f'WebSocket already closed')
+
+        print(f'connected?? {self._ws_client.connected}')
 
     def _handle_socket_close(self, data):
         """
