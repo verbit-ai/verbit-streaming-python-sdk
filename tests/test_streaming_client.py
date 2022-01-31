@@ -6,7 +6,7 @@ import websocket
 import pkg_resources
 from os import path
 from unittest.mock import MagicMock, patch
-# from tenacity import RetryError
+from tenacity import RetryError
 
 from verbit.streaming_client import SpeechStreamClient
 
@@ -102,18 +102,17 @@ class TestClientSDK(unittest.TestCase):
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
 
-    # def test_ws_connect_refuses_raises(self):
-    #     """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
-    #     client = SpeechStreamClient(access_token=self.access_token,
-    #                                 stream_id=self.stream_id)
-    #     client.max_connection_retry_seconds=1
+    def test_ws_connect_refuses_raises(self):
+        """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
+        client = SpeechStreamClient(access_token=self.access_token)
+        client.max_connection_retry_seconds=1
 
-    #     def mock_connect_fail(self, *args, **kwargs):
-    #         raise websocket.WebSocketException("Connection rejected by mocking")
+        def mock_connect_fail(self, *args, **kwargs):
+            raise websocket.WebSocketException("Connection rejected by mocking")
 
-    #     with patch('websocket.WebSocket.connect', mock_connect_fail):
-    #         with self.assertRaises(RetryError):
-    #             _ = client.start_stream(media_generator=self.valid_media_generator)
+        with patch('websocket.WebSocket.connect', mock_connect_fail):
+            with self.assertRaises(RetryError):
+                _ = client.start_stream(media_generator=self.valid_media_generator)
 
     # def test_close_unexpected_code(self):  # _Sometimes_ fails! since - media thread fails first.
     #     """CLOSE OPCODE in middle, with unexpected code"""
