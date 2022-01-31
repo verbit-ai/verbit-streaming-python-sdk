@@ -1,0 +1,5 @@
+# web
+websocket-client==1.2.3
+
+# helpers
+tenacity==8.0.1
