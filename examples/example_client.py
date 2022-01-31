@@ -33,7 +33,7 @@ def example_streaming_client(access_token, media_path):
     client = SpeechStreamClient(access_token=access_token)
 
     # init media chunks generator
-    media_generator = media_generator_wavefile(args.media_path,
+    media_generator = media_generator_wavefile(media_path,
                                                CHUNK_DURATION_SECONDS)
 
     # upgrade connection to websocket and start audio stream
