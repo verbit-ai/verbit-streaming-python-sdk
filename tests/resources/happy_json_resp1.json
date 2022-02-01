@@ -1,6 +1,7 @@
 {
     "response": {
         "id": "32664380-38e4-464d-bf99-e03cd902a568",
+        "type": "transcript",
         "is_final": false,
         "is_end_of_stream": false,
         "speakers": [
