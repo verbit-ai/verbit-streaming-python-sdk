@@ -75,31 +75,19 @@ class TestClientSDK(unittest.TestCase):
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
 
-        # assert expected responses
-        resp_index = 0
-        response = next(response_generator)
-        self.assertEqual(response, self._json_to_dict(side_effect[resp_index][1]))
-
-        resp_index = 1
-        response = next(response_generator)
-        self.assertEqual(response, self._json_to_dict(side_effect[resp_index][1]))
-
-        # resp '2' will be the 'end-of-stream' reply, it will realistically on arrive after media-thread finished
+        # final response should only arrive after the whole media is streamed:
+        # so we can just wait for media to end initially:
         self._wait_for_media_to_end(self._media_status)
+
+        # assert expected responses
+        for i, response in enumerate(response_generator):
+            self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
 
         # client close triggers sending an EOS message:
         self.client._ws_client.send.assert_called_once()
         arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send)}')
         self.assertIn('EOS', arg0_client_eos_send)
-
-        # EOS has been send by client
-
-        # now expect EOS from server ('media has ended')
-
-        resp_index = 2
-        response = next(response_generator)
-        self.assertEqual(response, self._json_to_dict(side_effect[resp_index][1]))
 
         # assert client closed after EOS response
         self.client._ws_client.close.assert_called_once()
@@ -238,7 +226,6 @@ class TestClientSDK(unittest.TestCase):
     # Helpers #
     # ======= #
     def _test_close_common(self, close_msg):
-        # """"Warning: all these 'close' test can become flaky and fail if MediaThread ends before the responses finish."""
 
         # mock websocket receive data func
         side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
