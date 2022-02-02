@@ -91,16 +91,16 @@ class SpeechStreamClient:
 
         :param media_generator: a generator of media bytes chunks to stream over websocket for speech recognition
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
-        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the server
+        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
 
-        :return: a generator whih yields speech recognition responses (transcript, captions or both)
+        :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
 
         # connect to websocket
-        self._logger.info(f'Connecting WebSocket with {self.ws_url}')
+        self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
         self._connect_websocket(media_config=media_config, response_types=response_types)
         self._logger.info('WebSocket connected!')
 
@@ -224,7 +224,7 @@ class SpeechStreamClient:
 
     def _response_generator(self) -> typing.Generator:
         """
-        Generator function for yielding responses.
+        Generator function for iterating responses.
 
         For available response structures, see: https://verbit.co/api_docs/index.html
         """
@@ -237,10 +237,10 @@ class SpeechStreamClient:
 
         try:
 
-            self._logger.debug('Listening for responses ...')
+            self._logger.debug('Waiting for responses ...')
 
-            # while websocket client is connected and close message was not received
-            while not received_close and self._ws_client.connected:
+            # as long as close message was not received
+            while not received_close:
 
                 # read data from websocket
                 opcode, data = self._ws_client.recv_data()
@@ -306,8 +306,8 @@ class SpeechStreamClient:
             'sample_rate': media_config.sample_rate,
             'sample_width': media_config.sample_width,
             'num_channels': media_config.num_channels,
-            'transcript': bool(response_types & ResponseType.Transcript),
-            'captions': bool(response_types & ResponseType.Captions),
+            'get_transcript': bool(response_types & ResponseType.Transcript),
+            'get_captions': bool(response_types & ResponseType.Captions),
         })
 
     def _get_ws_auth_info(self) -> dict:
