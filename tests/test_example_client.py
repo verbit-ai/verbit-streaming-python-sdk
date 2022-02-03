@@ -65,7 +65,7 @@ class TestExampleClient(unittest.TestCase):
     def setUp(self):
 
         self.access_token = "fake-token"
-        self.media_path = path.expanduser('no_file.wav')
+        self.media_path = path.abspath('16k_10s.wav')
 
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
