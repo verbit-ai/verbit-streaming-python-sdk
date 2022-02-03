@@ -340,6 +340,4 @@ class WebSocketStreamingClient:
     @staticmethod
     def _response_type_from_name(name: str):
         title = name.title()
-        if title in ResponseType.__members__:
-            return ResponseType[title]
-        return None
+        return ResponseType.__members__.get(title)
