@@ -120,7 +120,9 @@ class TestClientSDK(unittest.TestCase):
 
         ex = RuntimeError('Testing error propagation')
 
+        media_status = {'finished': False}
         def evil_media_gen():
+            media_status['finished'] = True
             yield 'fake'
             raise ex
 
@@ -133,8 +135,7 @@ class TestClientSDK(unittest.TestCase):
         client.start_stream(media_generator=evil_media_gen())
 
         # sleep for media-thread to actually run
-        time.sleep(0.001)
-
+        self._wait_for_media_to_end(media_status=media_status)
 
         # assert we get the expected exception
         client._on_media_error.assert_called_with(ex)
