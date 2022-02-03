@@ -51,7 +51,9 @@ client = SpeechStreamClient(access_token="ACCESS TOKEN")
 Create a generator function which yields chunks of audio (objects supporting the `bytes-like` interface).
 The StreamingClient will use your generator as input, iterating it and sending each audio chunk to the Speech Recognition service.
 
-Current SDK version only supports 16-bit signed-little-endian PCM input from this generator.
+Note:
+The current version of the service supports only WAV format (pcm_s16le - PCM signed 16-bit little-endian).
+Your generator should output audio chunks containing this format, you may also include WAV headers.
 
 The following example streams audio from a PCM-`wave` file:
 
