@@ -2,7 +2,10 @@
 
 ## Purpose
 
-This package is the __reference implementation__ for Verbit's Streaming API.
+This package is a Python SDK for Verbit's Streaming Transcription API.
+It can also be used as a reference implementation for porting to other programming languages.
+You can use it as-is (see installation instructions below), or use it as
+an example for implementing your own custom client.
 
 It is a client SDK for streaming media to, and getting responses from Verbit's
 Speech Recognition services, via a standard WebSocket connection.
