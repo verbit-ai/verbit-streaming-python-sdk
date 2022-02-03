@@ -10,7 +10,7 @@ from os import path
 from unittest.mock import MagicMock, patch
 from tenacity import RetryError
 
-from verbit.streaming_client import SpeechStreamClient
+from verbit.streaming_client import WebSocketStreamingClient
 from tests.common import RESPONSES
 
 class TestClientSDK(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestClientSDK(unittest.TestCase):
         self.access_token = "ABCD"
 
         # init and patch client
-        self.client = SpeechStreamClient(access_token=self.access_token)
+        self.client = WebSocketStreamingClient(access_token=self.access_token)
         self._patch_client(self.client)
 
         # init media generator
@@ -84,7 +84,7 @@ class TestClientSDK(unittest.TestCase):
 
     def test_ws_connect_refuses_raises(self):
         """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
-        client = SpeechStreamClient(access_token=self.access_token)
+        client = WebSocketStreamingClient(access_token=self.access_token)
         client.max_connection_retry_seconds = 1
 
         def mock_connect_fail(self, *args, **kwargs):
@@ -97,13 +97,13 @@ class TestClientSDK(unittest.TestCase):
     def test_missing_required_init_params(self):
 
         with self.assertRaises(ValueError):
-            SpeechStreamClient(access_token=None)
+            WebSocketStreamingClient(access_token=None)
 
     def test_media_thread_exceptions(self):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
 
         ex = RuntimeError('Testing error propagation')
 
@@ -132,7 +132,7 @@ class TestClientSDK(unittest.TestCase):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
         ex = RuntimeError('Testing error propagation')

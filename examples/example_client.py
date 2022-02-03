@@ -4,7 +4,7 @@ import argparse
 from time import sleep
 from pathlib import Path
 
-from verbit.streaming_client import SpeechStreamClient
+from verbit.streaming_client import WebSocketStreamingClient
 
 # constants
 CHUNK_DURATION_SECONDS = 0.1
@@ -30,7 +30,7 @@ def media_generator_wavefile(wav_path, chunk_duration):
 def example_streaming_client(access_token, media_path):
 
     # init verbit streaming client
-    client = SpeechStreamClient(access_token=access_token)
+    client = WebSocketStreamingClient(access_token=access_token)
 
     # init media chunks generator
     media_generator = media_generator_wavefile(media_path,
@@ -52,7 +52,7 @@ from verbit.streaming_client import ResponseType
 def example_captions(access_token, media_path):
 
     # init verbit streaming client
-    client = SpeechStreamClient(access_token=access_token)
+    client = WebSocketStreamingClient(access_token=access_token)
 
     # init media chunks generator
     media_generator = media_generator_wavefile(media_path,

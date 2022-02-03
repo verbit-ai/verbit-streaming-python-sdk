@@ -30,7 +30,7 @@ class ResponseType(IntFlag):
 RESPONSE_TYPE_STRINGS = set(x.name for x in ResponseType)
 
 
-class SpeechStreamClient:
+class WebSocketStreamingClient:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 60.0

@@ -59,7 +59,7 @@ class TestExampleClient(unittest.TestCase):
         self.media_path = path.join('tests', 'resources', 'happy_json_resp0.json')
         # self.media_path = path.join('tests', 'resources', 'example.wav' . # ^ XXX: WARNING: we need a real `wav` file for other things to pass in the near future. + this is ugly.
 
-    @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
+    @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
         example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
