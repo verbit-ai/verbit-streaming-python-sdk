@@ -7,8 +7,8 @@ It can also be used as a reference implementation for porting to other programmi
 You can use it as-is (see installation instructions below), or use it as
 an example for implementing your own custom client.
 
-It is a client SDK for streaming media to, and getting responses from Verbit's
-Speech Recognition services, via a standard WebSocket connection.
+The packages includes a Python client for streaming media and getting responses from Verbit's
+Speech Recognition services via WebSocket connection.
 
 You can use it as-is (see installation instructions below), or use it as
 a Python implementation example, and implement the client yourself.
