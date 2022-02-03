@@ -90,13 +90,12 @@ response_generator = client.start_stream(media_generator=media_generator,
 
 The client's `start_stream()` function returns a generator which can be iterated to fetch the results:
 ```example_stream_wav.py
-# get transcription responses
-print('Listening for responses ...')
+# get recognition responses
+print('Waiting for responses ...')
 for response in response_generator:
     alternatives = response['response']['alternatives']
     alt0_transcript = alternatives[0]['transcript']
     print(alt0_transcript)
-```
 
 ### Response format
 
