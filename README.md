@@ -88,8 +88,7 @@ response_generator = client.start_stream(media_generator=media_generator,
                                                                   sample_width=2))    # in bytes
 ```
 
-The resulting `response_generator` is a generator-function provided by the SDK for the client application to consume responses from.
-
+The client's `start_stream()` function returns a generator which can be iterated to fetch the results:
 ```example_stream_wav.py
 # get transcription responses
 print('Listening for responses ...')
