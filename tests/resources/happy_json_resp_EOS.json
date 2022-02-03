@@ -12,7 +12,7 @@
         ],
         "alternatives": [
             {
-                "transcript": "Male or just one moment, please. Sorry, I'm difficult. Steel to go. Sorry.",
+                "transcript": "The person who says it cannot be done, should not interrupt the person doing it.",
                 "start": 0.0,
                 "end": 10.0,
                 "items": [
@@ -20,131 +20,117 @@
                         "start": 0.05,
                         "end": 0.35,
                         "kind": "text",
-                        "value": "Male",
+                        "value": "The",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 0.35,
                         "end": 0.44,
                         "kind": "text",
-                        "value": "or",
+                        "value": "person",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 0.65,
                         "end": 0.83,
                         "kind": "text",
-                        "value": "just",
+                        "value": "who",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 2.99,
                         "end": 3.2,
                         "kind": "text",
-                        "value": "one",
+                        "value": "says",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 3.2,
                         "end": 3.47,
                         "kind": "text",
-                        "value": "moment",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
-                    },
-                    {
-                        "start": 3.47,
-                        "end": 3.47,
-                        "kind": "punct",
-                        "value": ",",
+                        "value": "it",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 3.47,
                         "end": 3.83,
                         "kind": "text",
-                        "value": "please",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
-                    },
-                    {
-                        "start": 3.83,
-                        "end": 3.83,
-                        "kind": "punct",
-                        "value": ".",
+                        "value": "cannot",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 3.89,
                         "end": 4.13,
                         "kind": "text",
-                        "value": "Sorry",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
-                    },
-                    {
-                        "start": 4.13,
-                        "end": 4.13,
-                        "kind": "punct",
-                        "value": ",",
+                        "value": "be",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 4.13,
                         "end": 4.22,
                         "kind": "text",
-                        "value": "I'm",
+                        "value": "done",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 4.22,
+                        "end": 4.22,
+                        "kind": "punct",
+                        "value": ".",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 4.22,
                         "end": 4.73,
                         "kind": "text",
-                        "value": "difficult",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
-                    },
-                    {
-                        "start": 4.73,
-                        "end": 4.73,
-                        "kind": "punct",
-                        "value": ".",
+                        "value": "should",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 4.97,
                         "end": 5.27,
                         "kind": "text",
-                        "value": "Steel",
+                        "value": "not",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 5.27,
                         "end": 5.36,
                         "kind": "text",
-                        "value": "to",
+                        "value": "interrupt",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 5.36,
                         "end": 5.51,
                         "kind": "text",
-                        "value": "go",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
-                    },
-                    {
-                        "start": 5.51,
-                        "end": 5.51,
-                        "kind": "punct",
-                        "value": ".",
+                        "value": "the",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 6.35,
                         "end": 6.8,
                         "kind": "text",
-                        "value": "Sorry",
+                        "value": "person",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 6.8,
-                        "end": 6.8,
+                        "end": 6.84,
+                        "kind": "text",
+                        "value": "doing",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 6.84,
+                        "end": 6.89,
+                        "kind": "text",
+                        "value": "it",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 6.89,
+                        "end": 6.89,
                         "kind": "punct",
                         "value": ".",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"

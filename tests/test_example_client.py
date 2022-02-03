@@ -1,28 +1,21 @@
+# Test covering 'example_client.py':
 import json
 import unittest
 import websocket
-import pkg_resources
 from os import path
 from unittest.mock import MagicMock, patch
 
 from examples import example_client
+from tests.common import RESPONSES
 
 
-# Load test resources:
-def _load_json_resource(name):
-    rel_path = pkg_resources.resource_filename(__name__, path.join('resources', name + '.json'))
-    with open(rel_path, 'rb') as f:
-        json_bytes = f.read()
-    return json_bytes
+# Test mock global test-variables:
+g_connection_fail_call_count = 0
 
+# Constants for mocks:
+REJECT_CONNECTION_COUNT = 2
 
-RESOURCE_KEYS = ['happy_json_resp0', 'happy_json_resp1', 'happy_json_resp_EOS']
-# init mock responses
-RESPONSES = {k: _load_json_resource(k) for k in RESOURCE_KEYS}
-
-# Test covering 'example_client.py':
-
-# helper Mocks to cover the 'example_client':
+# Helper Mocks to cover the 'example_client':
 def mock_connect_ok_with_sideeffect(self, *args, **kwargs):
     self.connected = True
     # return unittest.mock.DEFAULT
@@ -37,8 +30,6 @@ ws_replies_side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_res
                           (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
 
 
-g_connection_fail_call_count = 0
-REJECT_CONNECTION_COUNT = 2
 
 
 def mock_connect_after_rejections(self, *args, **kwargs):

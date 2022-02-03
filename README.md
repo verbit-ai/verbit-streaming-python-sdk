@@ -109,28 +109,15 @@ There are two types of responses "transcript" and "captions"
 All response types have the same format.
 
 1. Transcript: This type of response contains the recognized words since the beginning of the current utterance. Like in real human speech, the stream of words is segmented into utterances in automatic speech recognition. An utterance is recognized incrementally, processing more of the incoming audio at each step. Each utterance starts at a specific start-time and extends its end-time with each step, yielding the most updated result.
-Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`). 
+Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`).
 The `alternatives` array might contain different hypotheses, however the 1st alternative is commonly what you're looking for.
 
-2. Captions: This type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered). 
+2. Captions: This type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered).
 The `is_final` field is always `True` because no updates will be output. And the `alternatives` array always has only one item.
-### MediaConfig
 
-TBD!
-
-```python
-class MediaConfig:
-    format: str = 'S16LE'       # signed 16-bit little-endian PCM
-    sample_rate: int = 16000    # in Hz
-    sample_width: int = 2       # in bytes
-    num_channels: int = 1
-```
 ### Running tests:
 ```
 pip install pytest
 pip install -r tests/requirements_test.txt
 pytest
 ```
-
-----
-End of file.

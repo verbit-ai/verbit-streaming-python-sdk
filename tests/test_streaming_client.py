@@ -1,3 +1,5 @@
+# General SDK tests:
+
 import time
 import json
 import struct
@@ -9,23 +11,8 @@ from unittest.mock import MagicMock, patch
 from tenacity import RetryError
 
 from verbit.streaming_client import SpeechStreamClient
+from tests.common import RESPONSES
 
-
-# Load test resources:
-def _load_json_resource(name):
-    rel_path = pkg_resources.resource_filename(__name__, path.join('resources', name + '.json'))
-    with open(rel_path, 'rb') as f:
-        json_bytes = f.read()
-    return json_bytes
-
-
-RESOURCE_KEYS = ['happy_json_resp0', 'happy_json_resp1', 'happy_json_resp_EOS']
-# init mock responses
-RESPONSES = {k: _load_json_resource(k) for k in RESOURCE_KEYS}
-
-
-# -----------
-# General SDK tests:
 class TestClientSDK(unittest.TestCase):
 
     # Close responses data:

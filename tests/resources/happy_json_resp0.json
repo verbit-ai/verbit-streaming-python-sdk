@@ -12,23 +12,23 @@
         ],
         "alternatives": [
             {
-                "transcript": "Male or",
+                "transcript": "The person",
                 "start": 0.0,
-                "end": 1.0,
+                "end": 0.5,
                 "items": [
                     {
                         "start": 0.05,
                         "end": 0.35,
                         "kind": "text",
-                        "value": "Male",
+                        "value": "The",
                         "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     },
                     {
                         "start": 0.35,
                         "end": 0.44,
                         "kind": "text",
-                        "value": "or",
-                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a0 69be"
+                        "value": "person",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
                     }
                 ]
             }
