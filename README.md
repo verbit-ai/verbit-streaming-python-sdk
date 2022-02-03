@@ -107,7 +107,9 @@ The response has a `type` field, which is in (`transcript`, `captions`).
 
 All response types have the same format.
 
-1. Transcript: This is online transcription, the timestamps might overlap in different transcript responses, and the response has a boolean field `is_final`. The `alternatives` array has the difference hypotheses.
+1. Transcript: This type of response contains the recognized words since the beginning of the current utterance. Like in real human speech, the stream of words is segmented into utterances in automatic speech recognition. An utterance is recognized incrementally, processing more of the incoming audio at each step. Each utterance starts at a specific start-time and extends its end-time with each step, yielding the most updated result.
+Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`). 
+The `alternatives` array might contain different hypotheses, however the 1st alternative is commonly what you're looking for.
 
 1. Captions: Non-overlapping consecutive responses. The `is_final` field is always `true` here, and the `alternatives` array has only one hypothesis.
 
