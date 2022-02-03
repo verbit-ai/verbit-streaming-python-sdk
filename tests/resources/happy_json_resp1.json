@@ -1,0 +1,107 @@
+{
+    "response": {
+        "id": "32664380-38e4-464d-bf99-e03cd902a568",
+        "type": "transcript",
+        "is_final": false,
+        "is_end_of_stream": false,
+        "speakers": [
+            {
+                "id": "ac447f42-c17a-4ec6-af46-b40c49a069be",
+                "label": null
+            }
+        ],
+        "alternatives": [
+            {
+                "transcript": "The person who says it cannot be done, should not interrupt",
+                "start": 0.0,
+                "end": 5.5,
+                "items": [
+                    {
+                        "start": 0.05,
+                        "end": 0.35,
+                        "kind": "text",
+                        "value": "The",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 0.35,
+                        "end": 0.44,
+                        "kind": "text",
+                        "value": "person",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 0.65,
+                        "end": 0.83,
+                        "kind": "text",
+                        "value": "who",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 2.99,
+                        "end": 3.2,
+                        "kind": "text",
+                        "value": "says",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 3.2,
+                        "end": 3.47,
+                        "kind": "text",
+                        "value": "it",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 3.47,
+                        "end": 3.83,
+                        "kind": "text",
+                        "value": "cannot",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 3.89,
+                        "end": 4.13,
+                        "kind": "text",
+                        "value": "be",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 4.13,
+                        "end": 4.22,
+                        "kind": "text",
+                        "value": "done",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 4.22,
+                        "end": 4.22,
+                        "kind": "punct",
+                        "value": ".",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 4.22,
+                        "end": 4.73,
+                        "kind": "text",
+                        "value": "should",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 4.97,
+                        "end": 5.27,
+                        "kind": "text",
+                        "value": "not",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 5.27,
+                        "end": 5.36,
+                        "kind": "text",
+                        "value": "interrupt",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    }
+                ]
+            }
+        ]
+    }
+}

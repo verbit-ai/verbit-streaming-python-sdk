@@ -4,7 +4,7 @@ setup(
     name='verbit-streaming-sdk',
     description='',
     long_description='',
-    version='0.0.1',
+    version='0.8.0',
 
     packages=['verbit'],
     package_dir={'verbit': 'verbit'},

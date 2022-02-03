@@ -1,0 +1,37 @@
+{
+    "response": {
+        "id": "7b089620-3cc5-4f9f-a201-f3aa3e3f4433",
+        "type": "transcript",
+        "is_final": false,
+        "is_end_of_stream": false,
+        "speakers": [
+            {
+                "id": "ac447f42-c17a-4ec6-af46-b40c49a069be",
+                "label": null
+            }
+        ],
+        "alternatives": [
+            {
+                "transcript": "The person",
+                "start": 0.0,
+                "end": 0.5,
+                "items": [
+                    {
+                        "start": 0.05,
+                        "end": 0.35,
+                        "kind": "text",
+                        "value": "The",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    },
+                    {
+                        "start": 0.35,
+                        "end": 0.44,
+                        "kind": "text",
+                        "value": "person",
+                        "speaker_id": "ac447f42-c17a-4ec6-af46-b40c49a069be"
+                    }
+                ]
+            }
+        ]
+    }
+}
