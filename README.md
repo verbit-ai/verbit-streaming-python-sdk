@@ -103,7 +103,8 @@ for response in response_generator:
 
 ### Responses
 
-The response has a `type` field, which is in (`transcript`, `captions`).
+Responses received through the WebSocket are JSON objects with a specific schema.
+There are two types of responses "transcript" and "captions"
 
 All response types have the same format.
 
