@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from curses import REPORT_MOUSE_POSITION
 import json
 import struct
 import typing
@@ -24,6 +25,9 @@ class MediaConfig:
 class ResponseType(IntFlag):
     Transcript = 1
     Captions = 2
+
+
+RESPONSE_TYPE_STRINGS = set(x.name for x in ResponseType)
 
 
 class SpeechStreamClient:
@@ -60,9 +64,12 @@ class SpeechStreamClient:
         self._logger = None
         self.set_logger()
         self._media_sender_thread = None
+        self._response_types = 0
+        self._responses_eos_witnessed = 0
 
         # error handling
         self._on_media_error = on_media_error or self._default_on_media_error
+
 
     # ========== #
     # Properties #
@@ -98,6 +105,8 @@ class SpeechStreamClient:
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
+        self._response_types = response_types
+        self._responses_eos_witnessed = 0
 
         # connect to websocket
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
@@ -234,14 +243,14 @@ class SpeechStreamClient:
             raise RuntimeError('WebSocket client is disconnected!')
 
         # init closing flag
-        received_close = False
+        should_stop = False
 
         try:
 
             self._logger.debug('Waiting for responses ...')
 
             # as long as close message was not received
-            while not received_close:
+            while not should_stop:
 
                 # read data from websocket
                 opcode, data = self._ws_client.recv_data()
@@ -253,13 +262,20 @@ class SpeechStreamClient:
                     resp = json.loads(data.decode('utf-8'))
 
                     # update final response flag
-                    received_final_response = resp['response'].get('is_end_of_stream', False)
-                    ### ^^ TODO: response-types!
+                    received_eos_response = resp['response'].get('is_end_of_stream', False)
+
+                    if received_eos_response:
+                        response_type = self._response_type_from_name(resp['type'])
+                        if response_type is None:
+                            self.logger.warning(f"Received reply with unknown type field: {resp['type']}.")
+                        else:
+                            self._responses_eos_witnessed |= response_type
 
                     # explicitly close on final response:
-                    # since the 'finally' block will only run at some system dependant cleanup time.
-                    if received_final_response:
+                    # since the 'finally' block will only run at GC time of the generator:
+                    if self._responses_eos_witnessed == self._response_types:
                         self._close_ws()
+                        should_stop = True
                     yield resp
 
                 # message is close signal
@@ -269,7 +285,7 @@ class SpeechStreamClient:
                     self._handle_socket_close(data)
 
                     # update closing flag
-                    received_close = True
+                    should_stop = True
 
                 else:
 
@@ -277,6 +293,8 @@ class SpeechStreamClient:
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
         finally:
             self._close_ws()
+
+
 
     def _close_ws(self):
         """Close WebSocket if still connected."""
@@ -323,3 +341,10 @@ class SpeechStreamClient:
 
     def _get_ws_auth_info(self) -> dict:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
+
+    @staticmethod
+    def _response_type_from_name(name: str):
+        title = name.title()
+        if title in RESPONSE_TYPE_STRINGS:
+            return ResponseType[title]
+        return None
