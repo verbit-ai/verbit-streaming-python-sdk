@@ -21,7 +21,7 @@ more python examples.
 
 ## Installation
 
-To install the package via PyPi simply run:  ***TODO : Decide on package name***
+To install this package simply run:  ***TODO : Decide on package name***
 
     pip install --upgrade verbit-streaming-sdk
 
