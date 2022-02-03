@@ -55,7 +55,7 @@ Note:
 The current version of the service supports only WAV format (pcm_s16le - PCM signed 16-bit little-endian).
 Your generator should output audio chunks containing this format, you may also include WAV headers.
 
-The following example streams audio from a PCM-`wave` file:
+The following example reads audio from a WAV file and streams it to the Speech Recognition service:
 
 ```example_stream_wav.py
 from time import sleep
