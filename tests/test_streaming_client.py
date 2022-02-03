@@ -132,8 +132,11 @@ class TestClientSDK(unittest.TestCase):
         # start evil stream
         client.start_stream(media_generator=evil_media_gen())
 
+        # sleep for media-thread to actually run
+        time.sleep(0.001)
+
+
         # assert we get the expected exception
-        time.sleep(0)
         client._on_media_error.assert_called_with(ex)
 
     def test_bad_media_generator(self):
@@ -149,7 +152,7 @@ class TestClientSDK(unittest.TestCase):
         client.start_stream(media_generator=invalid_media_generator)
 
         # assert we get a type error from media sending thread
-        time.sleep(0)
+        time.sleep(0.001)
         client._on_media_error.assert_called_once()
         first_call_arg = client._on_media_error.call_args[0][0]
         self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
