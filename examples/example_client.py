@@ -10,7 +10,8 @@ from verbit.streaming_client import WebSocketStreamingClient
 CHUNK_DURATION_SECONDS = 0.1
 
 # set access token
-access_token = '<your_access_token>'
+streaming_access_token = '<your_access_token>'
+
 
 def media_generator_wavefile(wav_path, chunk_duration):
     """
@@ -45,28 +46,6 @@ def example_streaming_client(access_token, media_path):
         alt0_transcript = alternatives[0]['transcript']
         print(alt0_transcript)
 
-# TODO: Move to another file
-
-from verbit.streaming_client import ResponseType
-
-def example_captions(access_token, media_path):
-
-    # init verbit streaming client
-    client = WebSocketStreamingClient(access_token=access_token)
-
-    # init media chunks generator
-    media_generator = media_generator_wavefile(media_path,
-                                               CHUNK_DURATION_SECONDS)
-
-    # upgrade connection to websocket and start audio stream
-    response_generator = client.start_stream(media_generator=media_generator, response_types=ResponseType.Captions)
-
-    # get transcription responses
-    for response in response_generator:
-        alternatives = response['response']['alternatives']
-        alt0_transcript = alternatives[0]['transcript']
-        print(alt0_transcript)
-
 
 if __name__ == '__main__':
 
@@ -75,5 +54,4 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--media_path', required=True, type=Path, help='Full path of the media file to stream')
     args = parser.parse_args()
 
-    example_streaming_client(access_token, args.media_path)
-
+    example_streaming_client(streaming_access_token, args.media_path)

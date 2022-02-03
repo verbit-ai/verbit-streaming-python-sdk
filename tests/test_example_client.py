@@ -15,21 +15,19 @@ g_connection_fail_call_count = 0
 # Constants for mocks:
 REJECT_CONNECTION_COUNT = 2
 
+
 # Helper Mocks to cover the 'example_client':
 def mock_connect_ok_with_sideeffect(self, *args, **kwargs):
     self.connected = True
-    # return unittest.mock.DEFAULT
 
 
 def mock_close_with_sideeffect(self, *args, **kwargs):
-        self.connected = False
+    self.connected = False
 
 
 ws_replies_side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                           (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
                           (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
-
-
 
 
 def mock_connect_after_rejections(self, *args, **kwargs):
@@ -57,7 +55,6 @@ class TestExampleClient(unittest.TestCase):
 
         self.access_token = "fake-token"
         self.media_path = path.join('tests', 'resources', 'happy_json_resp0.json')
-        # self.media_path = path.join('tests', 'resources', 'example.wav' . # ^ XXX: WARNING: we need a real `wav` file for other things to pass in the near future. + this is ugly.
 
     @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
@@ -81,4 +78,3 @@ class TestExampleClient(unittest.TestCase):
     def test_example_ws_retry_and_connect(self):
         example_client.example_streaming_client(self.access_token, self.media_path)
         # completion with no exception
-

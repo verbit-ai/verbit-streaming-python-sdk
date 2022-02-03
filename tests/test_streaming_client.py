@@ -5,13 +5,14 @@ import json
 import struct
 import unittest
 import websocket
-import pkg_resources
-from os import path
 from unittest.mock import MagicMock, patch
+
 from tenacity import RetryError
 
 from verbit.streaming_client import WebSocketStreamingClient
+
 from tests.common import RESPONSES
+
 
 class TestClientSDK(unittest.TestCase):
 
@@ -38,7 +39,6 @@ class TestClientSDK(unittest.TestCase):
         self._media_status = {'finished': False}
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
-
 
     def test_happy_flow(self):
         """
@@ -108,6 +108,7 @@ class TestClientSDK(unittest.TestCase):
         ex = RuntimeError('Testing error propagation')
 
         media_status = {'finished': False}
+
         def evil_media_gen():
             print('alal')
             media_status['finished'] = True
@@ -138,6 +139,7 @@ class TestClientSDK(unittest.TestCase):
         ex = RuntimeError('Testing error propagation')
 
         media_status = {'finished': False}
+
         def bad_media_gen():
             media_status['finished'] = True
             yield 3
@@ -153,10 +155,6 @@ class TestClientSDK(unittest.TestCase):
         first_call_arg = client._on_media_error.call_args[0][0]
         self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
 
-
-
-
-
     # ========================================== #
     # Test difference early 'close()' scenarios: #
     # ========================================== #
@@ -170,7 +168,6 @@ class TestClientSDK(unittest.TestCase):
 
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
-
 
     def test_close_unexpected_code(self):  # _Sometimes_ fails! since - media thread fails first.
         """CLOSE OPCODE in middle, with unexpected code"""
@@ -223,7 +220,6 @@ class TestClientSDK(unittest.TestCase):
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
 
-
     # ======= #
     # Helpers #
     # ======= #
@@ -253,10 +249,9 @@ class TestClientSDK(unittest.TestCase):
 
     @staticmethod
     def _wait_for_media_to_end(media_status: dict, wait_interval=0.001):
-        # so: wait for media to end:
+        # wait for media to end:
         while not media_status['finished']:
             time.sleep(wait_interval)
-            # print(f'tick: {media_status}')
 
         # and for 'send()' to be done afterwards:
         time.sleep(wait_interval)

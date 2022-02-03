@@ -25,6 +25,12 @@ class ResponseType(IntFlag):
     Transcript = 1
     Captions = 2
 
+    @staticmethod
+    def from_name(name: str):
+        title = name.title()
+        return ResponseType.__members__.get(title)
+
+
 class WebSocketStreamingClient:
 
     # constants
@@ -60,11 +66,10 @@ class WebSocketStreamingClient:
         self.set_logger()
         self._media_sender_thread = None
         self._response_types = 0
-        self._responses_eos_witnessed = 0
+        self._eos_response_types = 0
 
         # error handling
         self._on_media_error = on_media_error or self._default_on_media_error
-
 
     # ========== #
     # Properties #
@@ -101,7 +106,7 @@ class WebSocketStreamingClient:
         # use default media config if not provided
         media_config = media_config or MediaConfig()
         self._response_types = response_types
-        self._responses_eos_witnessed = 0
+        self._eos_response_types = 0
 
         # connect to websocket
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
@@ -244,7 +249,7 @@ class WebSocketStreamingClient:
 
             self._logger.debug('Waiting for responses ...')
 
-            # as long as close message was not received
+            # as long as connection is open and receiving responses
             while not should_stop:
 
                 # read data from websocket
@@ -260,17 +265,19 @@ class WebSocketStreamingClient:
                     received_eos_response = resp['response'].get('is_end_of_stream', False)
 
                     if received_eos_response:
-                        response_type = self._response_type_from_name(resp['response']['type'])
+                        response_type = ResponseType.from_name(resp['response']['type'])
                         if response_type is None:
-                            self.logger.warning(f"Received reply with unknown type field: {resp['type']}.")
+                            self._logger.warning(f"Received reply with unknown type field: {resp['type']}.")
                         else:
-                            self._responses_eos_witnessed |= response_type
+                            self._eos_response_types |= response_type
 
                     # explicitly close on final response:
                     # since the 'finally' block will only run at GC time of the generator:
-                    if self._responses_eos_witnessed == self._response_types:
+                    if self._eos_response_types == self._response_types:
                         self._close_ws()
                         should_stop = True
+
+                    # response is ready
                     yield resp
 
                 # message is close signal
@@ -284,12 +291,10 @@ class WebSocketStreamingClient:
 
                 else:
 
-                    # Not an error, future server versions might use more opcodes.
+                    # future server versions might use more opcodes.
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
         finally:
             self._close_ws()
-
-
 
     def _close_ws(self):
         """Close WebSocket if still connected."""
@@ -336,8 +341,3 @@ class WebSocketStreamingClient:
 
     def _get_ws_auth_info(self) -> dict:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
-
-    @staticmethod
-    def _response_type_from_name(name: str):
-        title = name.title()
-        return ResponseType.__members__.get(title)
