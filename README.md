@@ -111,8 +111,8 @@ All response types have the same format.
 Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`). 
 The `alternatives` array might contain different hypotheses, however the 1st alternative is commonly what you're looking for.
 
-1. Captions: Non-overlapping consecutive responses. The `is_final` field is always `true` here, and the `alternatives` array has only one hypothesis.
-
+2. Captions: This type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered). 
+The `is_final` field is always `True` because no updates will be output. And the `alternatives` array always has only one item.
 ### MediaConfig
 
 TBD!
