@@ -265,7 +265,7 @@ class SpeechStreamClient:
                     received_eos_response = resp['response'].get('is_end_of_stream', False)
 
                     if received_eos_response:
-                        response_type = self._response_type_from_name(resp['type'])
+                        response_type = self._response_type_from_name(resp['response']['type'])
                         if response_type is None:
                             self.logger.warning(f"Received reply with unknown type field: {resp['type']}.")
                         else:
