@@ -126,7 +126,8 @@ class MediaConfig:
 ```
 ### Running tests:
 ```
-pip install -r requirements_dev.txt  # install pytest et al.
+pip install pytest
+pip install -r tests/requirements_test.txt
 pytest
 ```
 
