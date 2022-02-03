@@ -134,7 +134,7 @@ class TestClientSDK(unittest.TestCase):
         # start evil stream
         client.start_stream(media_generator=evil_media_gen())
 
-        # sleep for media-thread to actually run
+        # wait for media-thread to actually run
         self._wait_for_media_to_end(media_status=media_status)
 
         # assert we get the expected exception
@@ -146,14 +146,19 @@ class TestClientSDK(unittest.TestCase):
         client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
-        # invalid media generator
-        invalid_media_generator = range(10)
+        media_status = {'finished': False}
+        # invalid media generator:
+        def invalid_media_generator():
+            media_status['finished'] = True
+            for i in range(10):
+                yield i
 
         # start (invalid) stream
         client.start_stream(media_generator=invalid_media_generator)
 
-        # assert we get a type error from media sending thread
-        time.sleep(0.001)
+        # wait for media-thread to actually run
+        self._wait_for_media_to_end(media_status=media_status)
+
         client._on_media_error.assert_called_once()
         first_call_arg = client._on_media_error.call_args[0][0]
         self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
