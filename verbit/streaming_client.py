@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from curses import REPORT_MOUSE_POSITION
 import json
 import struct
 import typing
@@ -25,10 +24,6 @@ class MediaConfig:
 class ResponseType(IntFlag):
     Transcript = 1
     Captions = 2
-
-
-RESPONSE_TYPE_STRINGS = set(x.name for x in ResponseType)
-
 
 class WebSocketStreamingClient:
 
@@ -345,6 +340,6 @@ class WebSocketStreamingClient:
     @staticmethod
     def _response_type_from_name(name: str):
         title = name.title()
-        if title in RESPONSE_TYPE_STRINGS:
+        if title in ResponseType.__members__:
             return ResponseType[title]
         return None
