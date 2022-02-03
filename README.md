@@ -101,7 +101,7 @@ for response in response_generator:
 
 [TODO: link to format]
 
-### Response Types
+### Responses
 
 The response has a `type` field, which is in (`transcript`, `captions`).
 
