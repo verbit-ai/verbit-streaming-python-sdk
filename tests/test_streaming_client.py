@@ -110,7 +110,6 @@ class TestClientSDK(unittest.TestCase):
         media_status = {'finished': False}
 
         def evil_media_gen():
-            print('alal')
             media_status['finished'] = True
             yield b'fake'
             raise ex

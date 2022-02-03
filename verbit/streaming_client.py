@@ -25,10 +25,10 @@ class ResponseType(IntFlag):
     Transcript = 1
     Captions = 2
 
-    @staticmethod
-    def from_name(name: str):
+    @classmethod
+    def from_name(cls, name: str):
         title = name.title()
-        return ResponseType.__members__.get(title)
+        return cls.__members__.get(title)
 
 
 class WebSocketStreamingClient:
