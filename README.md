@@ -44,9 +44,9 @@ Please refer to documentation here: [Ordering API](https://app.swaggerhub.com/ap
 Create the client, and pass in the `Access Token` acquired from Ordering API:
 
 ```example_create_client.py
-from verbit.streaming_client import SpeechStreamClient
+from verbit.streaming_client import WebSocketStreamingClient
 
-client = SpeechStreamClient(access_token="ACCESS TOKEN")
+client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 ```
 
 ### Streaming audio and getting responses:
@@ -62,7 +62,7 @@ The following example reads audio from a WAV file and streams it to the Speech R
 
 ```example_stream_wav.py
 from time import sleep
-from verbit.streaming_client import SpeechStreamClient
+from verbit.streaming_client import WebSocketStreamingClient
 
 CHUNK_DURATION_SECONDS = 0.1
 AUDIO_FILENAME = 'example.wav'
@@ -83,7 +83,7 @@ def media_generator_wavefile(filename, chunk_duration):
 
 media_generator = media_generator_wavefile( AUDIO_FILENAME, CHUNK_DURATION_SECONDS)
 
-client = SpeechStreamClient(access_token="ACCESS TOKEN")
+client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 
 response_generator = client.start_stream(media_generator=media_generator,
                                          media_config=MediaConfig(format='S16LE',     # signed 16-bit little-endian PCM
@@ -99,10 +99,8 @@ for response in response_generator:
     alternatives = response['response']['alternatives']
     alt0_transcript = alternatives[0]['transcript']
     print(alt0_transcript)
+```
 
-### Response format
-
-[TODO: link to format]
 
 ### Responses
 
@@ -118,8 +116,11 @@ The `alternatives` array might contain different hypotheses, however the 1st alt
 2. Captions: This type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered).
 The `is_final` field is always `True` because no updates will be output. And the `alternatives` array always has only one item.
 
-### Running tests:
-```
+### Testing
+This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.
+
+To run the unit-tests:
+```bash
 pip install pytest
 pip install -r tests/requirements_test.txt
 pytest
