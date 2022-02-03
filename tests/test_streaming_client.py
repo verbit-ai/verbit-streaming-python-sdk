@@ -48,7 +48,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_client(self.client)
 
         # init media generator
-        self._media_status = dict()
+        self._media_status = {'finished': False}
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
@@ -241,8 +241,6 @@ class TestClientSDK(unittest.TestCase):
     @staticmethod
     def _fake_media_generator(num_samples, num_chunks, media_status: dict, delay_sec=0.1):
         """Fake media, of 16 bits per sample binary data"""
-        media_status['finished'] = False
-
         try:
             for _ in range(num_chunks):
                 yield b'\xff\xf8' * num_samples
