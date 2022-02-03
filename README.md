@@ -46,7 +46,7 @@ from verbit.streaming_client import SpeechStreamClient
 client = SpeechStreamClient(access_token="ACCESS TOKEN")
 ```
 
-### Streamed audio and responses:
+### Streaming audio and getting responses:
 
 Create a generator function which yields chunks of audio (objects supporting the `bytes-like` interface).
 The StreamingClient will use your generator as input, iterating it and sending each audio chunk to the Speech Recognition service.
