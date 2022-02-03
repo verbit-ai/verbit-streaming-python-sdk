@@ -65,7 +65,8 @@ class TestExampleClient(unittest.TestCase):
     def setUp(self):
 
         self.access_token = "fake-token"
-        self.media_path = path.abspath('16k_10s.wav')
+        self.media_path = path.join('tests', 'resources', 'happy_json_resp0.json')
+        # self.media_path = path.join('tests', 'resources', 'example.wav' . # ^ XXX: WARNING: we need a real `wav` file for other things to pass in the near future. + this is ugly.
 
     @patch('verbit.streaming_client.SpeechStreamClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):

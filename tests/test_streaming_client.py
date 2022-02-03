@@ -122,8 +122,9 @@ class TestClientSDK(unittest.TestCase):
 
         media_status = {'finished': False}
         def evil_media_gen():
+            print('alal')
             media_status['finished'] = True
-            yield 'fake'
+            yield b'fake'
             raise ex
 
         # mock
@@ -141,27 +142,32 @@ class TestClientSDK(unittest.TestCase):
         client._on_media_error.assert_called_with(ex)
 
     def test_bad_media_generator(self):
+        """Example of testing media errors on the media thread."""
 
         # init client
         client = SpeechStreamClient(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
-        media_status = {'finished': False}
-        # invalid media generator:
-        def invalid_media_generator():
-            media_status['finished'] = True
-            for i in range(10):
-                yield i
+        ex = RuntimeError('Testing error propagation')
 
-        # start (invalid) stream
-        client.start_stream(media_generator=invalid_media_generator)
+        media_status = {'finished': False}
+        def bad_media_gen():
+            media_status['finished'] = True
+            yield 3
+
+        # start evil stream
+        client.start_stream(media_generator=bad_media_gen())
 
         # wait for media-thread to actually run
         self._wait_for_media_to_end(media_status=media_status)
 
+        # assert we get the expected exception
         client._on_media_error.assert_called_once()
         first_call_arg = client._on_media_error.call_args[0][0]
         self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
+
+
+
 
 
     # ========================================== #
@@ -263,6 +269,7 @@ class TestClientSDK(unittest.TestCase):
         # so: wait for media to end:
         while not media_status['finished']:
             time.sleep(wait_interval)
+            # print(f'tick: {media_status}')
 
         # and for 'send()' to be done afterwards:
         time.sleep(wait_interval)
