@@ -28,14 +28,10 @@ def media_generator_wavefile(wav_path, chunk_duration):
             sleep(chunk_duration)
 
 
-def example_streaming_client(access_token, media_path):
+def example_streaming_client(access_token, media_generator):
 
     # init verbit streaming client
     client = WebSocketStreamingClient(access_token=access_token)
-
-    # init media chunks generator
-    media_generator = media_generator_wavefile(media_path,
-                                               CHUNK_DURATION_SECONDS)
 
     # upgrade connection to websocket and start audio stream
     response_generator = client.start_stream(media_generator=media_generator)
@@ -54,4 +50,8 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--media_path', required=True, type=Path, help='Full path of the media file to stream')
     args = parser.parse_args()
 
-    example_streaming_client(streaming_access_token, args.media_path)
+    # init media chunks generator
+    wav_media_generator = media_generator_wavefile(args.media_path, CHUNK_DURATION_SECONDS)
+
+    # run example client
+    example_streaming_client(streaming_access_token, wav_media_generator)
