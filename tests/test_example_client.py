@@ -54,7 +54,7 @@ class TestExampleClient(unittest.TestCase):
     def setUp(self):
 
         self.access_token = "fake-token"
-        self.mock_media_gen = (b'\x01' for _ in range(10))
+        self.mock_media_gen = (b'\x01' for _ in range(2))
 
     @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):

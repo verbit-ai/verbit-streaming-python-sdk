@@ -163,7 +163,7 @@ class WebSocketStreamingClient:
             ch.setFormatter(formatter)
 
             # add ch to logger
-            logger.addHandler(ch)
+            logging.basicConfig(handlers=[ch])
 
         self._logger = logger
 
