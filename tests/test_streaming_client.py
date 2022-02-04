@@ -135,8 +135,6 @@ class TestClientSDK(unittest.TestCase):
         client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
-        ex = RuntimeError('Testing error propagation')
-
         media_status = {'finished': False}
 
         def bad_media_gen():
