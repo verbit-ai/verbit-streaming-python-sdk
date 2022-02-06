@@ -100,14 +100,14 @@ There are two types of responses - "transcript" and "captions":
 Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`).
 The `alternatives` array might contain different hypotheses, ordered by confidence level.
 
-    Example "transcript" responses can be found in the [examples/responses/transcript.md](examples/responses/transcript.md).
+    Example "transcript" responses can be found in [examples/responses/transcript.md](examples/responses/transcript.md).
 
 
 2. **Captions**: this type of response contains the recognized words within a specific time window. In contrast to the incremental nature of "transcript"-type responses, the "captions"-type responses are non-overlapping and consecutive. 
 Only one "captions"-type response covering a specific time-span in the audio will be returned (or none, if no words were uttered).
 The `is_final` field is always `True` because no updates will be output for the same time-span. The `alternatives` array will always have only one item for captions.
 
-    Example "captions" responses can be found in the [examples/responses/captions.md](examples/responses/captions.md).
+    Example "captions" responses can be found in [examples/responses/captions.md](examples/responses/captions.md).
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.
