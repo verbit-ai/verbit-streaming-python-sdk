@@ -131,7 +131,7 @@ Note that:
         ],
         "alternatives": [
             {
-                "transcript": "Welcome friends, archivists from all around. Today's show in you case wanted to come over,",
+                "transcript": "Welcome friends, archivists from all around. Today's show in case you wanted to come over,",
                 "start": 0.0,
                 "end": 8.0,
                 "items": [
