@@ -20,9 +20,9 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         ],
         "alternatives": [
             {
-                "transcript": "Welcome friends, listener",
+                "transcript": "Welcome friends,",
                 "start": 0.2,
-                "end": 1.76,
+                "end": 1.25,
                 "items": [
                     {
                         "start": 0.2,
@@ -44,13 +44,6 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                         "kind": "punct",
                         "value": ",",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
-                    },
-                    {
-                        "start": 1.25,
-                        "end": 1.76,
-                        "kind": "text",
-                        "value": "listener",
-                        "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     }
                 ]
             }
@@ -63,7 +56,7 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
 ```json
 {
     "response": {
-        "id": "14a88403c-5a64-402c-b696-1e74a517dd30",
+        "id": "27f44bc9-1506-457a-8527-8e803aeb68b4",
         "type": "captions",
         "is_final": true,
         "is_end_of_stream": false,
@@ -75,7 +68,7 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         ],
         "alternatives": [
             {
-                "transcript": "archivists from future societies. Today's episode",
+                "transcript": "archivists from all around. Today's show",
                 "start": 2.03,
                 "end": 5.03,
                 "items": [
@@ -97,14 +90,14 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                         "start": 2.72,
                         "end": 3.05,
                         "kind": "text",
-                        "value": "future",
+                        "value": "all",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 3.05,
                         "end": 3.86,
                         "kind": "text",
-                        "value": "societies",
+                        "value": "around",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
@@ -125,7 +118,7 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                         "start": 4.61,
                         "end": 5.03,
                         "kind": "text",
-                        "value": "episode",
+                        "value": "show",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     }
                 ]
@@ -151,57 +144,57 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         ],
         "alternatives": [
             {
-                "transcript": "of seriously wrong starts with a warning, but",
+                "transcript": "in case you wanted to come over,",
                 "start": 5.03,
-                "end": 8.39,
+                "end": 7.67,
                 "items": [
                     {
                         "start": 5.03,
                         "end": 5.09,
                         "kind": "text",
-                        "value": "of",
+                        "value": "in",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 5.09,
                         "end": 5.63,
                         "kind": "text",
-                        "value": "seriously",
+                        "value": "case",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 5.63,
                         "end": 5.99,
                         "kind": "text",
-                        "value": "wrong",
+                        "value": "you",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 5.99,
                         "end": 6.59,
                         "kind": "text",
-                        "value": "starts",
+                        "value": "wanted",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 6.59,
                         "end": 6.92,
                         "kind": "text",
-                        "value": "with",
+                        "value": "to",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 6.95,
                         "end": 7.1,
                         "kind": "text",
-                        "value": "a",
+                        "value": "come",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
                         "start": 7.1,
                         "end": 7.67,
                         "kind": "text",
-                        "value": "warning",
+                        "value": "over",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     },
                     {
@@ -209,13 +202,6 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                         "end": 7.67,
                         "kind": "punct",
                         "value": ",",
-                        "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
-                    },
-                    {
-                        "start": 7.97,
-                        "end": 8.39,
-                        "kind": "text",
-                        "value": "but",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
                     }
                 ]
