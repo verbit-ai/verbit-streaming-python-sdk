@@ -4,7 +4,7 @@ Below are 3 "transcript" example responses - first, second and final response of
 (responses between the second and the last are not shown in this example).
 
 Note that:
-- The `"is_final"` field is `true` only for the last response of that utterance, since after the final response, the utterance no longer gets updates, and a new utterance will start.
+- The `"is_final"` field is `true` only for the last response of that utterance, since after the final response, the current utterance is no longer updated, and a new utterance will start.
 - The `"start"` field of the response remains the same for all responses of that utterance, but the `"end"` field increases with each response.
 - Response `"items"` of a given response can be replaced or deleted in a succeeding response within the same utterance. 
   - For example, look at "Arco vis" in the second response, which later becomes "archivists".   
