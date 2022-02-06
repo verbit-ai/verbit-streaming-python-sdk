@@ -45,12 +45,12 @@ Responses returned by Verbit's Streaming Speech Recognition services have the fo
     - `"id"` - A unique identifier of the speaker (UUID)
     - `"label"` - A string representing the speaker. Only available in sessions with human transcribers in the loop. This field is set to `null` by default.
   - `"alternatives"` - A list of alternative transcription hypotheses. At least one alternative is always returned.
-    - `"transcript"` - A string representing the transcript of the time-span specified by `"start"` and `"end"`.
-    - `"start"` - A floating point number representing the start time of the utterance. Measured in seconds from the beginning of the media stream.
-    - `"end"` - A floating point number representing the (current) end time of the utterance. Measured in seconds from the beginning of the media stream.  
-    - `"items"` - A list containing textual items (words, punctuation marks) and their timings.
-      - `"start"` - A floating point number representing the start time of the item. Measured in seconds from the beginning of the media stream.
-      - `"end"` - A floating point number representing the end time of the item. Measured in seconds from the beginning of the media stream.
+    - `"transcript"` - A textual representation of the alternative in the current response.
+    - `"start"` - The start time of the utterance. Measured in seconds from the beginning of the media stream.
+    - `"end"` - The (current) end time of the utterance. Measured in seconds from the beginning of the media stream.  
+    - `"items"` - A list containing textual items (words and punctuation marks) and their timings.
+      - `"start"` - The start time of the item. Measured in seconds from the beginning of the media stream.
+      - `"end"` - The end time of the item. Measured in seconds from the beginning of the media stream.
       - `"kind"` - The item kind. Can be either "text" or "punct" (a punctuation mark).
       - `"value"` - The item textual value
       - `"speaker_id"` - The unique identifier of the speaker that this item is associated with. Corresponds with an `"id"` of one of the speakers in the `"speakers"` field. 

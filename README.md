@@ -104,7 +104,7 @@ The `alternatives` array might contain different hypotheses, however the 1st alt
 
 
 2. **Captions**: this type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered).
-The `is_final` field is always `True` because no updates will be output. And the `alternatives` array always has only one item.
+The `is_final` field is always `True` because no updates will be output. Also the `alternatives` array will always have only one item for captions.
 
     Example "captions" responses can be found in the [examples/responses/captions.md](examples/responses/captions.md).
 
