@@ -38,10 +38,10 @@ Responses returned by Verbit's Streaming Speech Recognition services have the fo
 ### Fields description
 - `"response"` - The root element in the response JSON
   - `"id"` - A unique identifier of the response (UUID)
-  - `"type"` - The response type. Can be either "transcript" or "captions"
-  - `""is_final"` - A boolean denoting whether the response is the final one for the utterance (see explanation in README.md). For a "captions" response, this is always set to `"true"`, since captions are not incrementally updated (thus, each "captions" response is final).
+  - `"type"` - The response type. Can be either "transcript" or "captions" (See explanation in [README.md](../../README.md#responses)).
+  - `"is_final"` - A boolean denoting whether the response is the final one for the utterance (See explanation in [README.md](../../README.md#responses)). For a "captions" response, this is always set to `"true"`, since captions are not incrementally updated (thus, each "captions" response is final).
   - `"is_end_of_stream"` - A boolean denoting whether the response is the last one for the entire media stream
-  - `"speakers"` - A list of objects representing speakers in the media stream
+  - `"speakers"` - A list of objects representing speakers in the media stream, as identified by the speech recognition service. 
     - `"id"` - A unique identifier of the speaker (UUID)
     - `"label"` - A string representing the speaker. Only available in sessions with human transcribers in the loop. This field is set to `null` by default.
   - `"alternatives"` - A list of alternative transcription hypotheses. At least one alternative is always returned.
