@@ -10,8 +10,8 @@ setup(
     package_dir={'verbit': 'verbit'},
     python_requires=">=3.6",
     install_requires=[
-        'websocket-client>=1.2.3',
-        'tenacity>=7.0.0'
+        'websocket-client==1.2.3',
+        'tenacity==8.0.1'
     ],
     zip_safe=False
 )

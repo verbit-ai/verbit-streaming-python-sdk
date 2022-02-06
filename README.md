@@ -26,13 +26,13 @@ In order to use Verbit's Streaming Speech Recognition services, you must place a
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
-Please refer to our documentation here: [Ordering API](https://qa2.verbit.co/api_docs/index.html).
+Please refer to our documentation here: [Ordering API](https://verbit.co/api_docs/index.html).
 
-### Streaming audio and getting responses:
+### Streaming audio and getting responses
 
 Create the client, and pass in the `Access Token` acquired from the Ordering API:
 
-```example_create_client.py
+```python
 from verbit.streaming_client import WebSocketStreamingClient
 
 client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
@@ -49,7 +49,7 @@ Your generator should output audio chunks containing this format, which may also
 
 The following example reads audio from a WAV file and streams it to the Speech Recognition service:
 
-```example_stream_wav.py
+```python
 from time import sleep
 from verbit.streaming_client import WebSocketStreamingClient
 
@@ -81,7 +81,7 @@ response_generator = client.start_stream(media_generator=media_generator,
 ```
 
 The client's `start_stream()` function returns a generator which can be iterated to fetch the Speech Recognition responses:
-```example_stream_wav.py
+```python
 # get recognition responses
 print('Waiting for responses ...')
 for response in response_generator:
@@ -93,20 +93,21 @@ for response in response_generator:
 
 ### Responses
 
-Responses received through the WebSocket are JSON objects with a specific schema.
+Responses received through the WebSocket are JSON objects with a specific schema (a full description of which can be found in [examples/responses/schema.md](examples/responses/schema.md)).
 There are two types of responses - "transcript" and "captions":
 
 1. **Transcript**: this type of response contains the recognized words since the beginning of the current utterance. Like in real human speech, the stream of words is segmented into utterances in automatic speech recognition. An utterance is recognized incrementally, processing more of the incoming audio at each step. Each utterance starts at a specific start-time and extends its end-time with each step, yielding the most updated result.
 Note that sequential updates for the same utterance will overlap, each response superseding the previous one - until a response signaling the end of the utterance is received (having `is_final == True`).
-The `alternatives` array might contain different hypotheses, however the 1st alternative is commonly what you're looking for.
+The `alternatives` array might contain different hypotheses, ordered by confidence level.
 
-    Example "transcript" responses can be found in the `examples/responses/transcript` folder in this repository.
+    Example "transcript" responses can be found in [examples/responses/transcript.md](examples/responses/transcript.md).
 
 
-2. **Captions**: this type of response contains the recognized within a specific time window. In contrast to the incremental nature of "transcript"-type responses, these "captions"-type responses are non-overlapping and consecutive. You will only get one response covering a specific time span in the audio (or none, if no words were uttered).
-The `is_final` field is always `True` because no updates will be output. And the `alternatives` array always has only one item.
+2. **Captions**: this type of response contains the recognized words within a specific time window. In contrast to the incremental nature of "transcript"-type responses, the "captions"-type responses are non-overlapping and consecutive. 
+Only one "captions"-type response covering a specific time-span in the audio will be returned (or none, if no words were uttered).
+The `is_final` field is always `True` because no updates will be output for the same time-span. The `alternatives` array will always have only one item for captions.
 
-    Example "captions" responses can be found in the `examples/responses/captions` folder in this repository.
+    Example "captions" responses can be found in [examples/responses/captions.md](examples/responses/captions.md).
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.

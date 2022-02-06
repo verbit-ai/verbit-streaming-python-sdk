@@ -163,7 +163,7 @@ class WebSocketStreamingClient:
             ch.setFormatter(formatter)
 
             # add ch to logger
-            logger.addHandler(ch)
+            logging.basicConfig(handlers=[ch])
 
         self._logger = logger
 
@@ -236,6 +236,7 @@ class WebSocketStreamingClient:
         Generator function for iterating responses.
 
         For available response structures, see: https://verbit.co/api_docs/index.html
+        For a description of ABNF opcodes, see: https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
         """
 
         # ws is already connected at this point, see: start_stream()

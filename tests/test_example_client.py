@@ -54,11 +54,11 @@ class TestExampleClient(unittest.TestCase):
     def setUp(self):
 
         self.access_token = "fake-token"
-        self.media_path = path.join('tests', 'resources', 'happy_json_resp0.json')
+        self.mock_media_gen = (b'\x01' for _ in range(2))
 
     @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
-        example_client.example_streaming_client(self.access_token, self.media_path)
+        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
 
     @patch('websocket.WebSocket.connect', mock_connect_ok_with_sideeffect)
@@ -67,7 +67,7 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
     @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
     def test_example_client_mocked_ws(self):
-        example_client.example_streaming_client(self.access_token, self.media_path)
+        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
 
     @patch('websocket.WebSocket.connect', mock_connect_after_rejections)
@@ -76,5 +76,5 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
     @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
     def test_example_ws_retry_and_connect(self):
-        example_client.example_streaming_client(self.access_token, self.media_path)
+        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
