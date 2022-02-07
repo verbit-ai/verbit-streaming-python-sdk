@@ -268,7 +268,7 @@ class WebSocketStreamingClient:
                     if received_eos_response:
                         response_type = ResponseType.from_name(resp['response']['type'])
                         if response_type is None:
-                            self._logger.warning(f"Received reply with unknown type field: {resp['type']}.")
+                            self._logger.warning(f"Received reply with unknown type field: {resp['response']['type']}.")
                         else:
                             self._eos_response_types |= response_type
 
