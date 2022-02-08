@@ -26,7 +26,7 @@ In order to use Verbit's Streaming Speech Recognition services, you must place a
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
-Please refer to our documentation here: [Ordering API](https://verbit.co/api_docs/index.html).
+Please refer to our documentation here: [Ordering API](https://platform.verbit.co/api_docs).
 
 ### Streaming audio and getting responses
 
