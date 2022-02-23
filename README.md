@@ -47,6 +47,17 @@ _Note:
 The current version of the service supports only raw PCM format (pcm_s16le - PCM signed 16-bit little-endian).
 Your generator should output audio chunks in this format, **without** any format headers._
 
+#### End of Stream
+When the media generator is exhausted, the client should send an End-of-Stream (non-binary) message to the service. 
+The Verbit Streaming Speech Recognition service accepts non-binary messages with the following structure:
+```
+{
+   "event": str, 
+   "payload": dict
+}
+```
+The End-of-Stream message should have the `event` field set to `"EOS"`.
+
 ### Example
 
 The following example reads audio from a WAV file and streams it to the Speech Recognition service:
