@@ -49,14 +49,12 @@ Your generator should output audio chunks in this format, **without** any format
 
 #### End of Stream
 When the media generator is exhausted, the client should send an End-of-Stream (non-binary) message to the service. 
-The Verbit Streaming Speech Recognition service accepts non-binary messages with the following structure:
+The End-of-Stream message should have the following structure:
 ```
 {
-   "event": str, 
-   "payload": dict
+   "event": "EOS"
 }
 ```
-The End-of-Stream message should have the `event` field set to `"EOS"`.
 
 ### Example
 
