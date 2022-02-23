@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+import wave
 import argparse
+from math import ceil
 from time import sleep
 from pathlib import Path
 
-from verbit.streaming_client import WebSocketStreamingClient
+from verbit.streaming_client import WebSocketStreamingClient, MediaConfig, ResponseType
 
 # constants
 CHUNK_DURATION_SECONDS = 0.1
@@ -13,18 +15,18 @@ CHUNK_DURATION_SECONDS = 0.1
 streaming_access_token = '<your_access_token>'
 
 
-def media_generator_wavefile(wav_path, chunk_duration):
+def media_generator_wavefile(filename, chunk_duration):
     """
     Example generator, for streaming a 'WAV' audio-file, simulating realtime playback-rate using sleep()
     """
 
-    # calculate chunk size
-    # Note: assuming input file is a 16-bit mono 16000Hz PCM Wave file
-    chunk_size = int(chunk_duration * 2 * 16000)
-
-    with open(str(wav_path), 'rb') as wav:
-        while chunk_bytes := wav.read(chunk_size):
+    with wave.open(str(filename), 'rb') as wav:
+        nchannels, samplewidth, sample_rate, nframes, _, _ = wav.getparams()
+        samples_per_chunk = ceil(chunk_duration * sample_rate)
+        chunk_bytes = wav.readframes(samples_per_chunk)
+        while chunk_bytes:
             yield chunk_bytes
+            chunk_bytes = wav.readframes(samples_per_chunk)
             sleep(chunk_duration)
 
 
@@ -33,14 +35,24 @@ def example_streaming_client(access_token, media_generator):
     # init verbit streaming client
     client = WebSocketStreamingClient(access_token=access_token)
 
+    # set the properties of the media to be sent by the client
+    media_config = MediaConfig(format='S16LE',        # signed 16-bit little-endian PCM
+                               num_channels=1,      # number of audio channels
+                               sample_rate=16000,   # in Hz
+                               sample_width=2)      # in bytes
+
+    # set response types to request from the service
+    response_types = ResponseType.Transcript | ResponseType.Captions
+
     # upgrade connection to websocket and start audio stream
-    response_generator = client.start_stream(media_generator=media_generator)
+    response_generator = client.start_stream(media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     # get transcription responses
     for response in response_generator:
+        resp_type = response['response']['type']
         alternatives = response['response']['alternatives']
         alt0_transcript = alternatives[0]['transcript']
-        print(alt0_transcript)
+        print(f'{resp_type}: {alt0_transcript}')
 
 
 if __name__ == '__main__':

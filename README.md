@@ -41,17 +41,21 @@ client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 Create a generator function which yields chunks of audio (objects supporting the `bytes-like` interface).
 The StreamingClient will use your generator as input, iterating it and sending each audio chunk to the Speech Recognition service.
 
+**Important: The Speech Recognition service expects the audio chunks to arrive at a realtime pace, or slower. Faster than realtime pace may cause the service to behave unexpectedly.**
+
 _Note:
-The current version of the service supports only WAV format (pcm_s16le - PCM signed 16-bit little-endian).
-Your generator should output audio chunks containing this format, which may also include WAV headers._
+The current version of the service supports only raw PCM format (pcm_s16le - PCM signed 16-bit little-endian).
+Your generator should output audio chunks in this format, **without** any format headers._
 
 ### Example
 
 The following example reads audio from a WAV file and streams it to the Speech Recognition service:
 
 ```python
+import wave
+from math import ceil
 from time import sleep
-from verbit.streaming_client import WebSocketStreamingClient
+from verbit.streaming_client import WebSocketStreamingClient, MediaConfig, ResponseType
 
 CHUNK_DURATION_SECONDS = 0.1
 AUDIO_FILENAME = 'example.wav'
@@ -61,23 +65,29 @@ def media_generator_wavefile(filename, chunk_duration):
     Example generator, for streaming a 'WAV' audio-file, simulating realtime playback-rate using sleep()
     """
 
-    # calculate chunk size
-    # Note: assuming input file is a 16-bit mono 16000Hz WAV file
-    chunk_size = int(chunk_duration * 2 * 16000)
-
-    with open(filename, 'rb') as wav:
-        while chunk_bytes := wav.read(chunk_size):
+    with wave.open(str(filename), 'rb') as wav:
+        nchannels, samplewidth, sample_rate, nframes, _, _ = wav.getparams()
+        samples_per_chunk = ceil(chunk_duration * sample_rate)
+        chunk_bytes = wav.readframes(samples_per_chunk)
+        while chunk_bytes:
             yield chunk_bytes
+            chunk_bytes = wav.readframes(samples_per_chunk)
             sleep(chunk_duration)
 
-media_generator = media_generator_wavefile( AUDIO_FILENAME, CHUNK_DURATION_SECONDS)
+media_generator = media_generator_wavefile(AUDIO_FILENAME, CHUNK_DURATION_SECONDS)
 
+media_config = MediaConfig(format='S16LE',      # signed 16-bit little-endian PCM
+                           num_channels=1,      # number of audio channels
+                           sample_rate=16000,   # in Hz
+                           sample_width=2)      # in bytes
+
+response_types = ResponseType.Transcript | ResponseType.Captions
+    
 client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 
 response_generator = client.start_stream(media_generator=media_generator,
-                                         media_config=MediaConfig(format='S16LE',     # signed 16-bit little-endian PCM
-                                                                  sample_rate=16000,  # in Hz
-                                                                  sample_width=2))    # in bytes
+                                         media_config=media_config,
+                                         response_types=response_types)
 ```
 
 The client's `start_stream()` function returns a generator which can be iterated to fetch the Speech Recognition responses:
@@ -85,9 +95,10 @@ The client's `start_stream()` function returns a generator which can be iterated
 # get recognition responses
 print('Waiting for responses ...')
 for response in response_generator:
+    resp_type = response['response']['type']
     alternatives = response['response']['alternatives']
     alt0_transcript = alternatives[0]['transcript']
-    print(alt0_transcript)
+    print(f'{resp_type}: {alt0_transcript}')
 ```
 
 
