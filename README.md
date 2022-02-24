@@ -45,7 +45,7 @@ The StreamingClient will use your generator as input, iterating it and sending e
 
 _Note:
 The current version of the service supports only raw PCM format (pcm_s16le - PCM signed 16-bit little-endian).
-Your generator should output audio chunks in this format, **without** any format headers._
+Your generator should output audio chunks in this format._
 
 #### End of Stream
 When the media generator is exhausted, the client should send an End-of-Stream (non-binary) message to the service. 
