@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 from tenacity import retry, wait_random_exponential, stop_after_delay
-from websocket import WebSocket, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
+from websocket import WebSocket, WebSocketException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
 @dataclass
@@ -31,7 +31,7 @@ class ResponseType(IntFlag):
         return cls.__members__.get(title)
 
 
-class WebSocketStreamingClient:
+class WebSocketStreamingClient_Vanilla:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 60.0
@@ -45,6 +45,8 @@ class WebSocketStreamingClient:
         if not access_token:
             raise ValueError("Parameter 'access_token' is required")
 
+        ## TODO: member data-class, of all serializable state....
+
         # media config
         self._media_config = None
 
@@ -54,16 +56,20 @@ class WebSocketStreamingClient:
         self._model_id = None
         self._language_code = None
 
-        # websocket
+        # server url
         self._schema = 'wss'
         self._base_url = "speech.verbit.co"
         self._server_path = '/ws'
+
+        # websocket
         self._ws_client = WebSocket(enable_multithread=True)
         self._ws_access_token = access_token
 
-        # internal
+        # logger
         self._logger = None
         self.set_logger()
+
+        # internal
         self._media_sender_thread = None
         self._response_types = 0
         self._eos_response_types = 0
@@ -103,10 +109,11 @@ class WebSocketStreamingClient:
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
 
+        ### TODO: call only once unless internal restart... hmm...
+
         # use default media config if not provided
         media_config = media_config or MediaConfig()
         self._response_types = response_types
-        self._eos_response_types = 0
 
         # connect to websocket
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
@@ -209,6 +216,7 @@ class WebSocketStreamingClient:
             raise
 
     def _default_on_media_error(self, err: Exception):
+        self._logger.debug(f'Exception on media thread! {type(err)=} :: {err=}')  # TMP debug...
         self._logger.exception(f'Exception on media thread!')
 
     def _media_sender_worker(self, media_generator: typing.Generator):
@@ -223,6 +231,7 @@ class WebSocketStreamingClient:
 
                 # emit media chunk
                 self._ws_client.send_binary(chunk)
+            self._logger.debug(f'Media-Thread ended with no exception.')
 
             # signal end of stream
             self.send_event(event=self.EVENT_EOS)
@@ -294,7 +303,21 @@ class WebSocketStreamingClient:
 
                     # future server versions might use more opcodes.
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
-        finally:
+
+        # connection error -> don't try closing connection, this will raise another exception
+        except (ConnectionError, WebSocketException) as connection_error:
+            self._logger.debug(f'caught a ConnectionError: {type(connection_error)=} :: {connection_error=}: in {id(self)=}')
+            # re-raise for outer mechanisms to use
+            raise
+
+        # other exceptions, do try closing
+        except Exception as ex:
+            self._logger.debug(f'Trying close WS XXX {type(ex)=} :: {ex=} Trying to close WS: in {id(self)=}')
+            self._close_ws()
+
+        else:
+            self._logger.debug(f'NO EXP!')
+            self._logger.debug(f'Trying to close WS: in {id(self)=}')
             self._close_ws()
 
     def _close_ws(self):
@@ -342,3 +365,48 @@ class WebSocketStreamingClient:
 
     def _get_ws_auth_info(self) -> dict:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
+
+class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
+    """Wrap the Vanilla client to reconnect to server and continue.
+
+    Notes:
+     1. Handles the case where the server unexpectedly closed connection (for any reason)
+     2. Temporary lack of connection is often handled in the TCP layer,
+        that is, disconnecting and reconnecting from a network does not mean issue a disconnect, and is still handles in the Vanilla case as well.
+    3. Changing a logical network, such as the client being assigned a new IP, connecting to a different network
+       is not handled in this case, since the connection to the server does not fail yet, even though another route
+       might already be available. That case needs some Watch-Dog style task.
+
+
+
+
+
+    """
+
+
+
+
+
+
+    def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
+        super().__init__(access_token, on_media_error)
+
+    def start_stream(self,
+                     media_generator,
+                     media_config: MediaConfig = None,
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator:
+
+        response_generator = super().start_stream(media_generator, media_config, response_types)
+
+        try:
+            self._logger.debug(f'Starting reco gen: from {id(self)=}')
+            yield from response_generator
+
+        except (ConnectionError, WebSocketException) as connection_error:
+            self._logger.debug(f'caught {type(connection_error)} {connection_error=}, will try reconnect-and-continue')
+            yield from self.start_stream(media_generator, media_config, response_types)
+
+
+class WebSocketStreamingClient(WebSocketStreamingClient_Reconnect):
+    """Default exported Client class."""
+    pass

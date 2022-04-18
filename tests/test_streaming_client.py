@@ -9,9 +9,12 @@ from unittest.mock import MagicMock, patch
 
 from tenacity import RetryError
 
-from verbit.streaming_client import WebSocketStreamingClient
+from verbit.streaming_client import WebSocketStreamingClient_Vanilla, WebSocketStreamingClient_Reconnect, WebSocketStreamingClient
 
 from tests.common import RESPONSES
+
+
+### TODO: Make most tests pass with "Default" not only 'Vanilla' (now hangs...)
 
 
 class TestClientSDK(unittest.TestCase):
@@ -32,11 +35,12 @@ class TestClientSDK(unittest.TestCase):
         self.access_token = "ABCD"
 
         # init and patch client
-        self.client = WebSocketStreamingClient(access_token=self.access_token)
+        self.client = WebSocketStreamingClient_Vanilla(access_token=self.access_token)
         self._patch_client(self.client)
 
+
+        self._media_status = {'started': False, 'finished': False}
         # init media generator
-        self._media_status = {'finished': False}
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
@@ -64,7 +68,7 @@ class TestClientSDK(unittest.TestCase):
 
         # final response should only arrive after the whole media is streamed:
         # so we can just wait for media to end initially:
-        self._wait_for_media_to_end(self._media_status)
+        self._wait_for_media_key(self._media_status, key='finished')
 
         # assert expected responses
         for i, response in enumerate(response_generator):
@@ -84,7 +88,7 @@ class TestClientSDK(unittest.TestCase):
 
     def test_ws_connect_refuses_raises(self):
         """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
-        client = WebSocketStreamingClient(access_token=self.access_token)
+        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token)
         client.max_connection_retry_seconds = 1
 
         def mock_connect_fail(self, *args, **kwargs):
@@ -97,20 +101,20 @@ class TestClientSDK(unittest.TestCase):
     def test_missing_required_init_params(self):
 
         with self.assertRaises(ValueError):
-            WebSocketStreamingClient(access_token=None)
+            WebSocketStreamingClient_Vanilla(access_token=None)
 
     def test_media_thread_exceptions(self):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token, on_media_error=MagicMock())
 
         ex = RuntimeError('Testing error propagation')
 
-        media_status = {'finished': False}
+        media_status = {'started': False}
 
         def evil_media_gen():
-            media_status['finished'] = True
+            media_status['started'] = True
             yield b'fake'
             raise ex
 
@@ -123,7 +127,7 @@ class TestClientSDK(unittest.TestCase):
         client.start_stream(media_generator=evil_media_gen())
 
         # wait for media-thread to actually run
-        self._wait_for_media_to_end(media_status=media_status)
+        self._wait_for_media_key(media_status=media_status, key='started')
 
         # assert we get the expected exception
         client._on_media_error.assert_called_with(ex)
@@ -132,20 +136,20 @@ class TestClientSDK(unittest.TestCase):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
-        media_status = {'finished': False}
+        media_status = {'started': False}
 
         def bad_media_gen():
-            media_status['finished'] = True
+            media_status['started'] = True
             yield 3
 
         # start evil stream
         client.start_stream(media_generator=bad_media_gen())
 
         # wait for media-thread to actually run
-        self._wait_for_media_to_end(media_status=media_status)
+        self._wait_for_media_key(media_status=media_status, key='started')
 
         # assert we get the expected exception
         client._on_media_error.assert_called_once()
@@ -217,6 +221,55 @@ class TestClientSDK(unittest.TestCase):
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
 
+    def test_reconnect(self):
+        # exported client reconnects
+        self._test_reconnect_instance(WebSocketStreamingClient)
+
+        # 'Vanilla' client, does not reconnect by itself
+        with self.assertRaises(ConnectionError):
+            self._test_reconnect_instance(WebSocketStreamingClient_Vanilla)
+
+        # 'Reconnect' client, does
+        self._test_reconnect_instance(WebSocketStreamingClient_Reconnect)
+
+
+    def _test_reconnect_instance(self, cls):
+        """......"""
+
+        # init client
+        client = cls(access_token=self.access_token)
+
+        self._patch_client(client)
+
+        # mock websocket receive data func, infinite stream of the same response
+
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        ConnectionResetError('Test disconnection before reconnect 1'),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        ConnectionResetError('Test disconnection before reconnect 2'),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        ConnectionResetError('Test disconnection before reconnect 3'),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+
+        exception_count = sum(1 for x in side_effects if isinstance(x, Exception))
+        respense_count = len(side_effects) - exception_count
+
+        client._ws_client.recv_data = MagicMock(side_effect=side_effects)
+
+        response_generator = client.start_stream(media_generator=self.valid_media_generator)
+
+        for i in range(respense_count - 1):
+            response = next(response_generator)
+            self.assertFalse(response['response']['is_end_of_stream'], f'Response {i} expected to be EOS False')
+
+        last_response = next(response_generator)
+        self.assertTrue(last_response['response']['is_end_of_stream'], f'Response {i} expected to be EOS False')
+
+
     # ======= #
     # Helpers #
     # ======= #
@@ -237,6 +290,7 @@ class TestClientSDK(unittest.TestCase):
     def _fake_media_generator(num_samples, num_chunks, media_status: dict, delay_sec=0.1):
         """Fake media, of 16 bits per sample binary data"""
         try:
+            media_status['started'] = True
             for _ in range(num_chunks):
                 yield b'\xff\xf8' * num_samples
                 time.sleep(delay_sec)
@@ -245,9 +299,9 @@ class TestClientSDK(unittest.TestCase):
             media_status['finished'] = True
 
     @staticmethod
-    def _wait_for_media_to_end(media_status: dict, wait_interval=0.001):
-        # wait for media to end:
-        while not media_status['finished']:
+    def _wait_for_media_key(media_status: dict, key, wait_interval=0.001):
+        # wait for a specific key to change int 'media_status'
+        while not media_status[key]:
             time.sleep(wait_interval)
 
         # and for 'send()' to be done afterwards:
@@ -262,10 +316,18 @@ class TestClientSDK(unittest.TestCase):
 
         def mock_send_binary(chunk):
             if not client._ws_client.connected:
-                raise ConnectionError('Mocked WS disconnected.')
+                raise ConnectionError('Mocked WS disconnected called send_binary().')
 
             # if chunk has no 'len' (means it's not bytes) -> will raise an exception
             len(chunk)
+
+            # if we've reached here, return default Mock() behavior.
+
+            return unittest.mock.DEFAULT
+
+        def mock_recv_data():
+            if not client._ws_client.connected:
+                raise ConnectionError('Mocked WS disconnected called recv_data().')
 
             # if we've reached here, return default Mock() behavior.
 
@@ -277,6 +339,7 @@ class TestClientSDK(unittest.TestCase):
 
         client._ws_client.connect = MagicMock(side_effect=mock_connect)
         client._ws_client.send_binary = MagicMock(side_effect=mock_send_binary)
+        client._ws_client.recv_data = MagicMock(side_effect=mock_recv_data)
         client._ws_client.send = MagicMock()
         client._ws_client.close = MagicMock(side_effect=mock_close)
 

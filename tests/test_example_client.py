@@ -40,7 +40,7 @@ def mock_connect_after_rejections(self, *args, **kwargs):
     self.connected = True
 
 
-def mock_start_stream(self, media_generator):
+def mock_start_stream(self, media_generator, media_config, response_types):
     def mocked_responses():
         for i in range(3):
             resp_bytes = RESPONSES['happy_json_resp0']
