@@ -14,9 +14,6 @@ from verbit.streaming_client import WebSocketStreamingClient_Vanilla, WebSocketS
 from tests.common import RESPONSES
 
 
-### TODO: Make most tests pass with "Default" not only 'Vanilla' (now hangs...)
-
-
 class TestClientSDK(unittest.TestCase):
 
     # Close responses data:
@@ -35,7 +32,7 @@ class TestClientSDK(unittest.TestCase):
         self.access_token = "ABCD"
 
         # init and patch client
-        self.client = WebSocketStreamingClient_Vanilla(access_token=self.access_token)
+        self.client = WebSocketStreamingClient(access_token=self.access_token)
         self._patch_client(self.client)
 
 
@@ -87,9 +84,11 @@ class TestClientSDK(unittest.TestCase):
         self.assertFalse(self.client._ws_client.connected)
 
     def test_ws_connect_refuses_raises(self):
-        """When disabling ws_connect retries, client should fail raising an exception; without disabling it will simply take very long to test."""
-        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token)
-        client.max_connection_retry_seconds = 1
+        """Client should raise an exception after re-tries timeout."""
+        client = WebSocketStreamingClient(access_token=self.access_token)
+
+        short_timeout_for_testing = 0.01
+        client.max_connection_retry_seconds = short_timeout_for_testing
 
         def mock_connect_fail(self, *args, **kwargs):
             raise websocket.WebSocketException("Connection rejected by mocking")
@@ -101,13 +100,13 @@ class TestClientSDK(unittest.TestCase):
     def test_missing_required_init_params(self):
 
         with self.assertRaises(ValueError):
-            WebSocketStreamingClient_Vanilla(access_token=None)
+            WebSocketStreamingClient(access_token=None)
 
     def test_media_thread_exceptions(self):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
 
         ex = RuntimeError('Testing error propagation')
 
@@ -136,7 +135,7 @@ class TestClientSDK(unittest.TestCase):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = WebSocketStreamingClient_Vanilla(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
         self._patch_client(client)
 
         media_status = {'started': False}
@@ -221,27 +220,26 @@ class TestClientSDK(unittest.TestCase):
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
 
-    def test_reconnect(self):
+    def test_disconnect_while_streaming(self):
+        """Test expected behavior of server disconnection while streamming for different client classes."""
         # exported client reconnects
-        self._test_reconnect_instance(WebSocketStreamingClient)
+        self._run_mocked_disconnecting_server(WebSocketStreamingClient)
 
         # 'Vanilla' client, does not reconnect by itself
         with self.assertRaises(ConnectionError):
-            self._test_reconnect_instance(WebSocketStreamingClient_Vanilla)
+            self._run_mocked_disconnecting_server(WebSocketStreamingClient_Vanilla)
 
         # 'Reconnect' client, does
-        self._test_reconnect_instance(WebSocketStreamingClient_Reconnect)
+        self._run_mocked_disconnecting_server(WebSocketStreamingClient_Reconnect)
 
 
-    def _test_reconnect_instance(self, cls):
-        """......"""
+    def _run_mocked_disconnecting_server(self, cls: WebSocketStreamingClient_Vanilla):
+        """Run a scenario, creating a client instance and letting connect to a mocked server which disconnects and possibly resumes several times."""
 
         # init client
         client = cls(access_token=self.access_token)
 
         self._patch_client(client)
-
-        # mock websocket receive data func, infinite stream of the same response
 
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),

@@ -111,6 +111,12 @@ class WebSocketStreamingClient_Vanilla:
 
         ### TODO: call only once unless internal restart... hmm...
 
+        if self._ws_client.connected:
+            try:
+                self._ws_client.close()
+            except Exception as ex:
+                self._logger.warning(f'Ignoring exception: Type:{type(ex)} -> {ex}')
+
         # use default media config if not provided
         media_config = media_config or MediaConfig()
         self._response_types = response_types
@@ -373,20 +379,10 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
      1. Handles the case where the server unexpectedly closed connection (for any reason)
      2. Temporary lack of connection is often handled in the TCP layer,
         that is, disconnecting and reconnecting from a network does not mean issue a disconnect, and is still handles in the Vanilla case as well.
-    3. Changing a logical network, such as the client being assigned a new IP, connecting to a different network
-       is not handled in this case, since the connection to the server does not fail yet, even though another route
-       might already be available. That case needs some Watch-Dog style task.
-
-
-
-
-
+     3. Changing a logical network, such as the client being assigned a new IP, connecting to a different network
+        is not handled in this case, since the connection to the server does not fail yet, even though another route
+        might already be available. That case needs some Watch-Dog style task.
     """
-
-
-
-
-
 
     def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
         super().__init__(access_token, on_media_error)
@@ -398,13 +394,16 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
 
         response_generator = super().start_stream(media_generator, media_config, response_types)
 
-        try:
-            self._logger.debug(f'Starting reco gen: from {id(self)=}')
-            yield from response_generator
+        def reconnect_generator():
+            try:
+                self._logger.debug(f'Starting reconnect_generator: with WS instance: {id(self._ws_client)}')
+                yield from response_generator
 
-        except (ConnectionError, WebSocketException) as connection_error:
-            self._logger.debug(f'caught {type(connection_error)} {connection_error=}, will try reconnect-and-continue')
-            yield from self.start_stream(media_generator, media_config, response_types)
+            except (ConnectionError, WebSocketException) as connection_error:
+                self._logger.debug(f'caught {type(connection_error)} {connection_error=}, will try reconnect-and-continue')
+                yield from self.start_stream(media_generator, media_config, response_types)
+
+        return reconnect_generator()
 
 
 class WebSocketStreamingClient(WebSocketStreamingClient_Reconnect):
