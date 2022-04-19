@@ -9,7 +9,7 @@ from threading import Thread
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from tenacity import retry, wait_random_exponential, stop_after_delay
+from tenacity import retry, wait_random_exponential, stop_after_delay, RetryError
 from websocket import WebSocket, WebSocketException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
@@ -34,7 +34,7 @@ class ResponseType(IntFlag):
 class WebSocketStreamingClient_Vanilla:
 
     # constants
-    DEFAULT_CONNECT_TIMEOUT_SECONDS = 60.0
+    DEFAULT_CONNECT_TIMEOUT_SECONDS = 3.0
 
     # events
     EVENT_EOS = 'EOS'
@@ -112,10 +112,7 @@ class WebSocketStreamingClient_Vanilla:
         ### TODO: call only once unless internal restart... hmm...
 
         if self._ws_client.connected:
-            try:
-                self._ws_client.close()
-            except Exception as ex:
-                self._logger.warning(f'Ignoring exception: Type:{type(ex)} -> {ex}')
+            raise RuntimeError('unexpected')
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
@@ -214,8 +211,21 @@ class WebSocketStreamingClient_Vanilla:
                 # open websocket connection
                 self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
 
-            # connect
-            connect_and_retry()
+            try:
+                connect_and_retry()
+
+            except RetryError as retry_err:
+                # ex, tr = retry_err.last_attempt.exception_info()
+                # ll = retry_err.last_attempt
+                # # six.reraise(type(ex), ex, tr)
+                # qrere = connect_and_retry.retry
+                # # re_listlist = list(connect_and_retry.retry)
+                # # self._logger.info(f'ZZZ: {ll=} {qrere=} {re_listlist=}')
+                # self._logger.info(f'ZZZ: {ll=} {qrere=}')
+                statistics = connect_and_retry.retry.statistics
+                self._logger.error(f'Retry error with: {statistics=}')
+                self._logger.exception(f'Error connecting WebSocket!')
+
 
         except Exception:
             self._logger.exception(f'Error connecting WebSocket!')
@@ -237,11 +247,12 @@ class WebSocketStreamingClient_Vanilla:
 
                 # emit media chunk
                 self._ws_client.send_binary(chunk)
-            self._logger.debug(f'Media-Thread ended with no exception.')
+            self._logger.debug(f'Finished sending media')
 
             # signal end of stream
+            self._logger.debug(f'Will send EOS event')
             self.send_event(event=self.EVENT_EOS)
-            self._logger.debug(f'Finished sending media')
+            self._logger.debug(f'EOS event sent')
 
         except Exception as err:
             self._on_media_error(err)
@@ -312,18 +323,18 @@ class WebSocketStreamingClient_Vanilla:
 
         # connection error -> don't try closing connection, this will raise another exception
         except (ConnectionError, WebSocketException) as connection_error:
-            self._logger.debug(f'caught a ConnectionError: {type(connection_error)=} :: {connection_error=}: in {id(self)=}')
+            self._logger.error(f'Caught and re-raising an exception: type{type(connection_error)}:{connection_error}')
+            self._logger.exception('Display: exp')
             # re-raise for outer mechanisms to use
             raise
 
         # other exceptions, do try closing
         except Exception as ex:
-            self._logger.debug(f'Trying close WS XXX {type(ex)=} :: {ex=} Trying to close WS: in {id(self)=}')
+            self._logger.exception(f'Exception caught in ._response_generator(), closing websocket, logging and re-raising.')
             self._close_ws()
+            raise
 
         else:
-            self._logger.debug(f'NO EXP!')
-            self._logger.debug(f'Trying to close WS: in {id(self)=}')
             self._close_ws()
 
     def _close_ws(self):

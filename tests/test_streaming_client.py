@@ -241,6 +241,9 @@ class TestClientSDK(unittest.TestCase):
 
         self._patch_client(client)
 
+        # Given a list of side-effects: MagicMock will iterate through them:
+        # 1. Given a class derived from Exception: the instance will be RAISED
+        # 2. Give any other class, the instance will be RETURNED
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         ConnectionResetError('Test disconnection before reconnect 1'),
