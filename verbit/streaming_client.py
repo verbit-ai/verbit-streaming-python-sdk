@@ -9,8 +9,15 @@ from threading import Thread
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from tenacity import retry, wait_random_exponential, stop_after_delay, RetryError
+import tenacity
+from tenacity import retry, wait_random_exponential, stop_after_delay
 from websocket import WebSocket, WebSocketException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
+
+
+### Test:
+### 1. retry messages format -> to display the failure each time (e.g. 'status 503 Service Temporarily Unavailable')
+### 2. disconnect changing network (wifi to cellular for example)
+### 3. See Docker vs qa2
 
 
 @dataclass
@@ -34,7 +41,7 @@ class ResponseType(IntFlag):
 class WebSocketStreamingClient_Vanilla:
 
     # constants
-    DEFAULT_CONNECT_TIMEOUT_SECONDS = 3.0
+    DEFAULT_CONNECT_TIMEOUT_SECONDS = 1.0
 
     # events
     EVENT_EOS = 'EOS'
@@ -62,7 +69,8 @@ class WebSocketStreamingClient_Vanilla:
         self._server_path = '/ws'
 
         # websocket
-        self._ws_client = WebSocket(enable_multithread=True)
+        self._ws_client = None
+        # self._ws_client = WebSocket(enable_multithread=True)
         self._ws_access_token = access_token
 
         # logger
@@ -98,7 +106,7 @@ class WebSocketStreamingClient_Vanilla:
     def start_stream(self,
                      media_generator,
                      media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator:
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator[typing.Dict, None, None]:
         """
         Start streaming media and get back speech recognition responses from server.
 
@@ -111,8 +119,8 @@ class WebSocketStreamingClient_Vanilla:
 
         ### TODO: call only once unless internal restart... hmm...
 
-        if self._ws_client.connected:
-            raise RuntimeError('unexpected')
+        # NOTE: can be called several times, after connection is lost!
+        self._logger.info('start_Vanilla')
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
@@ -120,6 +128,7 @@ class WebSocketStreamingClient_Vanilla:
 
         # connect to websocket
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
+
         self._connect_websocket(media_config=media_config, response_types=response_types)
         self._logger.info('WebSocket connected!')
 
@@ -144,6 +153,8 @@ class WebSocketStreamingClient_Vanilla:
         # serialize as json
         msg_json = json.dumps(msg)
 
+        if self._ws_client is None or not self._ws_client.connected:
+            raise RuntimeError('.send_event() but WebSocket is not connected.')
         # send to server
         self._ws_client.send(msg_json)
 
@@ -203,29 +214,45 @@ class WebSocketStreamingClient_Vanilla:
         # build websocket url
         ws_url = self.ws_url + self._get_ws_connect_query_string(media_config=media_config, response_types=response_types)
 
+        # create WebSocket instance
+        self._ws_client = WebSocket(enable_multithread=True)
+
+        @retry(wait=wait_random_exponential(multiplier=0.5,  max=80),
+                stop=stop_after_delay(self.max_connection_retry_seconds),
+                # retry=tenacity.retry_if_exception_type(ConnectionError, WebSocketException)),
+                retry=tenacity.retry_if_exception_type(WebSocketException),
+                ## WebSocketBadStatusException: Handshake status 502 Bad Gateway only 5xx errors, not 4xx's
+                before_sleep=tenacity.before_sleep_log(self._logger, logging.DEBUG))
+        def connect_and_retry():
+            """
+
+            The logger: 'tenacity.before_sleep_log' outputs lines in the such as:
+               Retrying verbit.streaming_client.WebSocketStreamingClient_Vanilla._connect_websocket.<locals>.connect_and_retry in 31.657296526464872 seconds as it raised WebSocketBadStatusException: Handshake status 502 Bad Gateway.
+            """
+            # open websocket connection
+            self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
+
         try:
+            connect_and_retry()
 
-            @retry(wait=wait_random_exponential(multiplier=0.5,  max=60), stop=stop_after_delay(self.max_connection_retry_seconds))
-            def connect_and_retry():
-
-                # open websocket connection
-                self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
-
-            try:
-                connect_and_retry()
-
-            except RetryError as retry_err:
-                # ex, tr = retry_err.last_attempt.exception_info()
-                # ll = retry_err.last_attempt
-                # # six.reraise(type(ex), ex, tr)
-                # qrere = connect_and_retry.retry
-                # # re_listlist = list(connect_and_retry.retry)
-                # # self._logger.info(f'ZZZ: {ll=} {qrere=} {re_listlist=}')
-                # self._logger.info(f'ZZZ: {ll=} {qrere=}')
-                statistics = connect_and_retry.retry.statistics
-                self._logger.error(f'Retry error with: {statistics=}')
-                self._logger.exception(f'Error connecting WebSocket!')
-
+        # Catch tenacity.RetryError in order to display a nice error message
+        except tenacity.RetryError as retry_err:
+            # ex, tr = retry_err.last_attempt.exception_info()
+            # ll = retry_err.last_attempt
+            # # six.reraise(type(ex), ex, tr)
+            # qrere = connect_and_retry.retry
+            # # re_listlist = list(connect_and_retry.retry)
+            # # self._logger.info(f'ZZZ: {ll=} {qrere=} {re_listlist=}')
+            # self._logger.info(f'ZZZ: {ll=} {qrere=}')
+            statistics = connect_and_retry.retry.statistics
+            self._logger.info(f'ZZZ::: {retry_err=} {dir(retry_err)=}')
+            last_attempt = retry_err.last_attempt
+            self._logger.info(f'HHH::: {last_attempt=}')
+            ex = last_attempt.exception
+            last_attempt
+            q = ex.state
+            self._logger.error(f'Error connecting WebSocket! Exceeded maximum retries: last attempt raised: {ex} {statistics=} {q}')
+            raise
 
         except Exception:
             self._logger.exception(f'Error connecting WebSocket!')
@@ -235,7 +262,7 @@ class WebSocketStreamingClient_Vanilla:
         self._logger.debug(f'Exception on media thread! {type(err)=} :: {err=}')  # TMP debug...
         self._logger.exception(f'Exception on media thread!')
 
-    def _media_sender_worker(self, media_generator: typing.Generator):
+    def _media_sender_worker(self, media_generator: typing.Generator[bytes, None, None]):
         """Thread function for emitting media from a user-given generator."""
 
         try:
@@ -255,9 +282,10 @@ class WebSocketStreamingClient_Vanilla:
             self._logger.debug(f'EOS event sent')
 
         except Exception as err:
+            ## TODO: handle marking 'connection already closed' if already send in other thread...
             self._on_media_error(err)
 
-    def _response_generator(self) -> typing.Generator:
+    def _response_generator(self) -> typing.Generator[typing.Dict, None, None]:
         """
         Generator function for iterating responses.
 
@@ -265,8 +293,8 @@ class WebSocketStreamingClient_Vanilla:
         For a description of ABNF opcodes, see: https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
         """
 
-        # ws is already connected at this point, see: start_stream()
-        if not self._ws_client.connected:
+        # ws is already connected at this point, see: .start_stream()
+        if self._ws_client is None or not self._ws_client.connected:
             raise RuntimeError('WebSocket client is disconnected!')
 
         # init closing flag
@@ -323,8 +351,8 @@ class WebSocketStreamingClient_Vanilla:
 
         # connection error -> don't try closing connection, this will raise another exception
         except (ConnectionError, WebSocketException) as connection_error:
-            self._logger.error(f'Caught and re-raising an exception: type{type(connection_error)}:{connection_error}')
-            self._logger.exception('Display: exp')
+            self._logger.error(f'Caught and re-raising an exception: type{type(connection_error)}:{connection_error}', )
+            self._logger.debug(f'Trace, connection_error.', exc_info=True)
             # re-raise for outer mechanisms to use
             raise
 
@@ -383,6 +411,7 @@ class WebSocketStreamingClient_Vanilla:
     def _get_ws_auth_info(self) -> dict:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
 
+
 class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
     """Wrap the Vanilla client to reconnect to server and continue.
 
@@ -390,31 +419,82 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
      1. Handles the case where the server unexpectedly closed connection (for any reason)
      2. Temporary lack of connection is often handled in the TCP layer,
         that is, disconnecting and reconnecting from a network does not mean issue a disconnect, and is still handles in the Vanilla case as well.
-     3. Changing a logical network, such as the client being assigned a new IP, connecting to a different network
+     3. *** ? Changing a logical network, such as the client being assigned a new IP, connecting to a different network
         is not handled in this case, since the connection to the server does not fail yet, even though another route
         might already be available. That case needs some Watch-Dog style task.
     """
 
     def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
         super().__init__(access_token, on_media_error)
+        self._super_start_stream = None
 
     def start_stream(self,
                      media_generator,
                      media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator:
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator[typing.Dict, None, None]:
 
-        response_generator = super().start_stream(media_generator, media_config, response_types)
+        # call super().start_stream directly, for connection to connect now
+        self._logger.info('start_RERE')
+        self._logger.info('WILL CONNECT NOW')
+        self._logger.info(f'{self.start_stream=} {super()=} {type(self)=} {super().start_stream=}')
+        # response_generator = super().start_stream(media_generator, media_config, response_types)
 
-        def reconnect_generator():
+        # capture arguments via a closure, explicit super() parameters are needed since this is not a method.
+        self._super_start_stream = lambda: super(WebSocketStreamingClient_Reconnect, self).start_stream(media_generator, media_config, response_types)
+        response_generator = self._super_start_stream()
+        # self._logger.info(f'start yielding... {type(response_generator)=}')
+
+        return self._reconnect_generator(response_generator)
+
+    def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
+        while True:
+            self._logger.info(f'_reconnect_gen called with resp: {response_generator}')
+            self._logger.info(f'{self.start_stream=} {super()=} {type(self)=} {super().start_stream=}')
+            # resp = WebSocketStreamingClient_Vanilla.start_stream(self, media_generator, media_config, response_types)
+            # resp = super().start_stream(media_generator, media_config, response_types)
+            # self._logger.info(f'start yielding... {type(resp)=}')
+            # restart-stream, now, as soon as possible
+            # self._logger.info('WILL CONNECT NOW')
+            # response_generator = super(self.__class__, self).start_stream(media_generator, media_config, response_types)
+            # self._logger.info(f'start yielding... {type(reconnect_generator)=}')
+
             try:
                 self._logger.debug(f'Starting reconnect_generator: with WS instance: {id(self._ws_client)}')
                 yield from response_generator
 
-            except (ConnectionError, WebSocketException) as connection_error:
+            except (ConnectionError, WebSocketException, OSError) as connection_error:
                 self._logger.debug(f'caught {type(connection_error)} {connection_error=}, will try reconnect-and-continue')
-                yield from self.start_stream(media_generator, media_config, response_types)
 
-        return reconnect_generator()
+                # wait for other threads, that still access the web-socket to fail and stop
+                self._wait_for_thread(self._media_sender_thread, timeout_step=0.1, global_timeout=1.0)
+
+                # reconnect ASAP
+                self._logger.info('WILL RECONNECT NOW')
+                response_generator = self._super_start_stream()
+
+                # # # and continue future yields from now on
+                # yield from continued_responses
+
+            except Exception as ex:
+                self._logger.debug(f'Stack track from reconnect_generator():, untreated exception {type(ex)}:{ex} .', exc_info=True)
+                # stop generator
+                break
+            else:
+                # stop generator
+                break
+
+    def _wait_for_thread(self, thread: Thread , timeout_step, global_timeout=10000.0):
+        waiting_for = 0.0
+        while True:
+            thread.join(timeout=timeout_step)
+            if thread.is_alive():
+                waiting_for += timeout_step
+                self._logger.debug(f'{thread.name} not closing, {waiting_for=} seconds...')
+                if waiting_for >= global_timeout:
+                    return False
+            else:
+                self._logger.debug(f'{thread.name} closed, {waiting_for=} seconds...')
+                return True
 
 
 class WebSocketStreamingClient(WebSocketStreamingClient_Reconnect):
