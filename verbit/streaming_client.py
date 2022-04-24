@@ -11,13 +11,16 @@ from urllib.parse import urlencode
 
 import tenacity
 from tenacity import retry, wait_random_exponential, stop_after_delay
-from websocket import WebSocket, WebSocketException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
+from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
 ### Test:
 ### 1. retry messages format -> to display the failure each time (e.g. 'status 503 Service Temporarily Unavailable')
 ### 2. disconnect changing network (wifi to cellular for example)
 ### 3. See Docker vs qa2
+
+### Add test and cover:
+### Server 5xx => retry connecting, 4xx => give up
 
 
 @dataclass
@@ -41,7 +44,7 @@ class ResponseType(IntFlag):
 class WebSocketStreamingClient_Vanilla:
 
     # constants
-    DEFAULT_CONNECT_TIMEOUT_SECONDS = 1.0
+    DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
 
     # events
     EVENT_EOS = 'EOS'
@@ -216,19 +219,76 @@ class WebSocketStreamingClient_Vanilla:
 
         # create WebSocket instance
         self._ws_client = WebSocket(enable_multithread=True)
+        self._ws_client.timeout = 0.1
 
-        @retry(wait=wait_random_exponential(multiplier=0.5,  max=80),
-                stop=stop_after_delay(self.max_connection_retry_seconds),
+        def retry_http_error_predicate(ex: WebSocketBadStatusException):
+            retry_http_4xx_codes = [429]
+            dont_retry_http_5xx_codes = [501, 505, 506, 507, 508, 510]
+
+            # specific 4xx Client-Errors trigger retry
+            if ex.status_code in retry_http_4xx_codes:
+                return True
+
+            # Don't retry all other 4xx client-errors
+            if 400 <= ex.status_code < 500:
+                return False
+
+            # specific 5xx Server-Errors not to retry:
+            if ex.status_code in dont_retry_http_5xx_codes:
+                return False
+
+            # Retry all other 5xx server-errors:
+            elif 500 <= ex.status_code < 600:
+                return True
+
+            # Don't retry all other errors codes
+            return False
+
+        def retry_predicate(retry_state: tenacity.RetryCallState):
+            """Returning True - means retry, False means do not."""
+            outcome: tenacity.Future = retry_state.outcome
+            self._logger.info(f"failed? {outcome.failed}")
+            if outcome.failed:
+                ex:Exception = retry_state.outcome.exception()
+                self._logger.warning(f'While connecting caught {type(ex).__name__}: {ex}')
+                # Dispatch for Exceptions-types that should sometimes be retries
+                if isinstance(ex, WebSocketBadStatusException):
+                    should_retry = retry_http_error_predicate(ex)
+                    if should_retry:
+                        self._logger.warning('should retry')
+                    else:
+                        self._logger.warning('should not retry')
+                    return should_retry
+
+                # types that should always be retried
+                if isinstance(ex, (ConnectionError, TimeoutError)):
+                    self._logger.warning('should not retry')
+                    return True
+
+                # Other times should not be retried until identified
+                self._logger.warning('should not retry')
+                return False
+
+            # Non-exception will not be retried
+            result = retry_state.outcome.result()
+            self._logger.info(f"success, no retry: {result=}")
+            return False
+
+        @retry(wait=wait_random_exponential(multiplier=0.5),
+               stop=stop_after_delay(self.max_connection_retry_seconds),
+               retry=retry_predicate,
+            #    reraise=True, # reraise original exception if giving up, rather than RetryError,
+        )
                 # retry=tenacity.retry_if_exception_type(ConnectionError, WebSocketException)),
-                retry=tenacity.retry_if_exception_type(WebSocketException),
+                # retry=tenacity.retry_if_exception_type(WebSocketException),
+               #retry=tenacity.retry_if_exception_type(WebSocketBadStatusException),
+               #retry_error_callback=p_should_retry,
+                # retry_error_callback=return_last_value,
+                # retry=retry_if_result(is_false))
+                # retry=tenacity.retry_if_exception_type(ClientError),
                 ## WebSocketBadStatusException: Handshake status 502 Bad Gateway only 5xx errors, not 4xx's
-                before_sleep=tenacity.before_sleep_log(self._logger, logging.DEBUG))
+                # before_sleep=tenacity.before_sleep_log(self._logger, logging.DEBUG)
         def connect_and_retry():
-            """
-
-            The logger: 'tenacity.before_sleep_log' outputs lines in the such as:
-               Retrying verbit.streaming_client.WebSocketStreamingClient_Vanilla._connect_websocket.<locals>.connect_and_retry in 31.657296526464872 seconds as it raised WebSocketBadStatusException: Handshake status 502 Bad Gateway.
-            """
             # open websocket connection
             self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
 
@@ -248,10 +308,10 @@ class WebSocketStreamingClient_Vanilla:
             self._logger.info(f'ZZZ::: {retry_err=} {dir(retry_err)=}')
             last_attempt = retry_err.last_attempt
             self._logger.info(f'HHH::: {last_attempt=}')
-            ex = last_attempt.exception
-            last_attempt
-            q = ex.state
-            self._logger.error(f'Error connecting WebSocket! Exceeded maximum retries: last attempt raised: {ex} {statistics=} {q}')
+            ex = last_attempt.exception()
+            self._logger.error(f'Error connecting WebSocket! Exceeded maximum retries, giving up. last attempt raised: {type(ex).__name__} : {ex} :: retry {statistics=}')
+
+            # raise further so that exception can be handled
             raise
 
         except Exception:
@@ -351,8 +411,8 @@ class WebSocketStreamingClient_Vanilla:
 
         # connection error -> don't try closing connection, this will raise another exception
         except (ConnectionError, WebSocketException) as connection_error:
-            self._logger.error(f'Caught and re-raising an exception: type{type(connection_error)}:{connection_error}', )
-            self._logger.debug(f'Trace, connection_error.', exc_info=True)
+            self._logger.error(f'_response_generator(): Caught and re-raising an exception: type{type(connection_error)}:{connection_error}', )
+            self._logger.debug(f'Trace from _response_generator():', exc_info=True)
             # re-raise for outer mechanisms to use
             raise
 
@@ -440,60 +500,81 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
         # response_generator = super().start_stream(media_generator, media_config, response_types)
 
         # capture arguments via a closure, explicit super() parameters are needed since this is not a method.
-        self._super_start_stream = lambda: super(WebSocketStreamingClient_Reconnect, self).start_stream(media_generator, media_config, response_types)
-        response_generator = self._super_start_stream()
-        # self._logger.info(f'start yielding... {type(response_generator)=}')
+        # self._super_start_stream = lambda: super(WebSocketStreamingClient_Reconnect, self).start_stream(media_generator, media_config, response_types)
+        self._media_generator = media_generator
+        self._media_config = media_config
+        self._response_types = response_types
+
+        # start stream now
+        response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
 
         return self._reconnect_generator(response_generator)
 
     def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
-        while True:
-            self._logger.info(f'_reconnect_gen called with resp: {response_generator}')
-            self._logger.info(f'{self.start_stream=} {super()=} {type(self)=} {super().start_stream=}')
-            # resp = WebSocketStreamingClient_Vanilla.start_stream(self, media_generator, media_config, response_types)
-            # resp = super().start_stream(media_generator, media_config, response_types)
-            # self._logger.info(f'start yielding... {type(resp)=}')
-            # restart-stream, now, as soon as possible
-            # self._logger.info('WILL CONNECT NOW')
-            # response_generator = super(self.__class__, self).start_stream(media_generator, media_config, response_types)
-            # self._logger.info(f'start yielding... {type(reconnect_generator)=}')
+        """ Exception implying a server error, try to reconnect and keep yielding results afterwards."""
+
+        ended = False
+
+        while not ended:
 
             try:
                 self._logger.debug(f'Starting reconnect_generator: with WS instance: {id(self._ws_client)}')
                 yield from response_generator
 
-            except (ConnectionError, WebSocketException, OSError) as connection_error:
-                self._logger.debug(f'caught {type(connection_error)} {connection_error=}, will try reconnect-and-continue')
+                # response_generator exhausted without any exceptions
+                ended = True
+
+            # Expected exceptions:
+            # 1. WebSocketException: from remote WebSocket connection
+            # 2. ConnectionError: when WebSocket is on the same local machine, seems to be using Pipes etc
+            # 3. TimeoutError: From OS-level 'select()' or similar operations, for example when physically disconnecting for a network results in a timeout
+            #
+            except (ConnectionError, WebSocketException, TimeoutError) as connection_error:
+                self._logger.debug(f'caught {type(connection_error).__name__}: {connection_error}, will try reconnect-and-continue')
 
                 # wait for other threads, that still access the web-socket to fail and stop
-                self._wait_for_thread(self._media_sender_thread, timeout_step=0.1, global_timeout=1.0)
+                self._wait_for_thread(self._media_sender_thread, timeout_step=0.1, global_timeout=1.0, logger=self._logger)
 
-                # reconnect ASAP
+                # try reconnecting as soon as the exception's been caught
+                # and keep on yielding from the same generator
+
+                # NOTE: This means user code consuming from this generator
+                # might have to handle: RetryError, or the connection errors, different from the
                 self._logger.info('WILL RECONNECT NOW')
-                response_generator = self._super_start_stream()
+                try:
+                    response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
+                except tenacity.RetryError:
+                    self._logger.error('Gave up retrying during reconnection. stopping _reconnect_generator()')
+                    ended = True
+                    # do not raise further
 
-                # # # and continue future yields from now on
-                # yield from continued_responses
+                except Exception:
+                    self._logger.exception('caught during attempting to reconnect, stopping _reconnect_generator()')
+                    ended = True
+                    raise
 
+            # any other exception ends iteration
             except Exception as ex:
                 self._logger.debug(f'Stack track from reconnect_generator():, untreated exception {type(ex)}:{ex} .', exc_info=True)
                 # stop generator
-                break
-            else:
-                # stop generator
-                break
+                ended = True
 
-    def _wait_for_thread(self, thread: Thread , timeout_step, global_timeout=10000.0):
+
+    @staticmethod
+    def _wait_for_thread(thread: Thread , timeout_step, global_timeout=10000.0, logger=None):
+        """Join thread with logging on result"""
         waiting_for = 0.0
         while True:
             thread.join(timeout=timeout_step)
             if thread.is_alive():
                 waiting_for += timeout_step
-                self._logger.debug(f'{thread.name} not closing, {waiting_for=} seconds...')
+                if logger:
+                    logger.debug(f'{thread.name} not closing, {waiting_for=} seconds...')
                 if waiting_for >= global_timeout:
                     return False
             else:
-                self._logger.debug(f'{thread.name} closed, {waiting_for=} seconds...')
+                if logger:
+                    logger.debug(f'{thread.name} closed, {waiting_for=} seconds...')
                 return True
 
 
