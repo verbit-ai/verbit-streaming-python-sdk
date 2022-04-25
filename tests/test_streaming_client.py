@@ -4,7 +4,7 @@ import time
 import json
 import struct
 import unittest
-# import websocket
+import websocket
 from unittest.mock import MagicMock, patch
 
 from tenacity import RetryError
@@ -12,10 +12,7 @@ from tenacity import RetryError
 import verbit.streaming_client
 from verbit.streaming_client import WebSocketStreamingClient_Vanilla, WebSocketStreamingClient_Reconnect, WebSocketStreamingClient
 
-import websocket
 from tests.common import RESPONSES
-
-
 
 
 class TestClientSDK(unittest.TestCase):
@@ -152,6 +149,7 @@ class TestClientSDK(unittest.TestCase):
             # yield an invalid chunk
             yield 3
 
+            # unreachable, client code will raise and not continue after an invalid chunk
             media_status['finished'] = True
 
         # start evil stream
