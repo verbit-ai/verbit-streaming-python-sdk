@@ -4,14 +4,18 @@ import time
 import json
 import struct
 import unittest
-import websocket
+# import websocket
 from unittest.mock import MagicMock, patch
 
 from tenacity import RetryError
 
+import verbit.streaming_client
 from verbit.streaming_client import WebSocketStreamingClient_Vanilla, WebSocketStreamingClient_Reconnect, WebSocketStreamingClient
 
+import websocket
 from tests.common import RESPONSES
+
+
 
 
 class TestClientSDK(unittest.TestCase):
@@ -31,16 +35,15 @@ class TestClientSDK(unittest.TestCase):
         # fake
         self.access_token = "ABCD"
 
-        # init and patch client
         self.client = WebSocketStreamingClient(access_token=self.access_token)
-        self._patch_client(self.client)
-
 
         self._media_status = {'started': False, 'finished': False}
         # init media generator
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
+    # @patch('websocket.WebSocket.__new__', mock_connect_fail):
+    # @patch.object(websocket.WebSocket, 'connect', MagicMock())
     def test_happy_flow(self):
         """
         Happy flow:
@@ -49,19 +52,31 @@ class TestClientSDK(unittest.TestCase):
             3. client has called 'close()' after EOS
         """
 
+        # self._patch_ws_client(websocket.WebSocket)
+        self._patch_ws_class()
+
         # mock websocket receive data func
         side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
-        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
+
+        # self._patch_ws_client(self.client._ws_client)
+
 
         # check that ws is not yet connected
-        self.assertFalse(self.client._ws_client.connected)
+        # check that ws is not yet connected
+        # self.assertIsNone(self.client._ws_client)
+        # self.assertFalse(self.client._ws_client.connected)
+        # mock_websocket.recv_data = MagicMock(side_effect=[])
+
 
         # start streaming mocked media (and mock connection)
         response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
+
+        # after WebSocket exists - patch specifically with specific responses
+        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
         # final response should only arrive after the whole media is streamed:
         # so we can just wait for media to end initially:
@@ -71,10 +86,13 @@ class TestClientSDK(unittest.TestCase):
         for i, response in enumerate(response_generator):
             self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
 
+        # assert that the right number of responses where indeed all consumed and checked above
+        self.assertEqual(i, len(side_effect) - 1)
+
         # client close triggers sending an EOS message:
         self.client._ws_client.send.assert_called_once()
         arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
-        self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send)}')
+        self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
         self.assertIn('EOS', arg0_client_eos_send)
 
         # assert client closed after EOS response
@@ -308,15 +326,43 @@ class TestClientSDK(unittest.TestCase):
         # and for 'send()' to be done afterwards:
         time.sleep(wait_interval)
 
-    @staticmethod
-    def _patch_client(client):
 
-        def mock_connect(*args, **kwargs):
-            client._ws_client.connected = True
+
+
+
+# class PatcherTestCase(unittest.TestCase):
+#     def setUp(self):
+#         self.patcher = patch('some_module.some_object')
+#         self.mock_object = self.patcher.start()
+
+#     def tearDown(self):
+#         self.patcher.stop()
+
+#     def assertMockCallsEqual(self, *args):
+#       self.assertEqual(self.mock_object.call_args_list, list(args))
+
+#     def test_something(self):
+#       # Do something that impacts mock object
+#       pass
+
+#       # Make assertions about mock object state
+#       self.assertMockCallsEqual(
+#         call('arg_1_value', 'arg_2_value', 'arg_3_value'),  # call 1
+#         call('arg_1_value', 'arg_2_value', 'arg_3_value'),  # call 2
+#       )
+
+    # def _patch_client(client):
+    # see: https://docs.python.org/3/library/unittest.mock-examples.html#mocking-unbound-methods
+    # @staticmethod
+
+    def _patch_ws_class(self):
+
+        def mock_connect_ok(self_, *args, **kwargs):
+            self_.connected = True
             return unittest.mock.DEFAULT
 
-        def mock_send_binary(chunk):
-            if not client._ws_client.connected:
+        def mock_send_binary(self_, chunk):
+            if not self_.connected:
                 raise ConnectionError('Mocked WS disconnected called send_binary().')
 
             # if chunk has no 'len' (means it's not bytes) -> will raise an exception
@@ -326,23 +372,43 @@ class TestClientSDK(unittest.TestCase):
 
             return unittest.mock.DEFAULT
 
-        def mock_recv_data():
-            if not client._ws_client.connected:
+        def mock_recv_data(self_):
+            if not self_.connected:
                 raise ConnectionError('Mocked WS disconnected called recv_data().')
 
             # if we've reached here, return default Mock() behavior.
 
             return unittest.mock.DEFAULT
 
-        def mock_close(*args, **kwargs):
-            client._ws_client.connected = False
+        def mock_close(self_, *args, **kwargs):
+            self_.connected = False
             return unittest.mock.DEFAULT
 
-        client._ws_client.connect = MagicMock(side_effect=mock_connect)
-        client._ws_client.send_binary = MagicMock(side_effect=mock_send_binary)
-        client._ws_client.recv_data = MagicMock(side_effect=mock_recv_data)
-        client._ws_client.send = MagicMock()
-        client._ws_client.close = MagicMock(side_effect=mock_close)
+        # ws_client.connect = MagicMock(side_effect=mock_connect)
+        # ws_client.send_binary = MagicMock(side_effect=mock_send_binary)
+        # ws_client.recv_data = MagicMock(side_effect=mock_recv_data)
+        # ws_client.send = MagicMock()
+        # ws_client.close = MagicMock(side_effect=mock_close)
+
+        # patch relevant methods
+        patchers = (
+            patch.object(verbit.streaming_client.WebSocket, 'connect', autospec=True, side_effect=mock_connect_ok),
+            patch.object(verbit.streaming_client.WebSocket, 'send_binary', autospec=True, side_effect=mock_send_binary),
+            patch.object(verbit.streaming_client.WebSocket, 'recv_data', autospec=True, side_effect=mock_recv_data),
+            patch.object(verbit.streaming_client.WebSocket, 'send', autospec=False),
+            patch.object(verbit.streaming_client.WebSocket, 'close', autospec=True, side_effect=mock_close),
+        )
+
+        # start all patchers
+        for patcher in patchers:
+            patcher.start()
+
+        def stop_patchers():
+            for patcher in patchers:
+                patcher.stop()
+
+        # stop these patchers at end of current test-case
+        self.addCleanup(stop_patchers)
 
     @staticmethod
     def _json_to_dict(j: bytes):

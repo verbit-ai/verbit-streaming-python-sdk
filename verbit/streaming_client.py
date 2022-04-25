@@ -218,6 +218,9 @@ class WebSocketStreamingClient_Vanilla:
 
         # create WebSocket instance
         self._ws_client = WebSocket(enable_multithread=True)
+
+        ## XXX: Cover, or at least test..
+        # self._ws_client.timeout = 0.0
         # self._ws_client.timeout = 0.01
         # self._ws_client.timeout = 1.0
 
