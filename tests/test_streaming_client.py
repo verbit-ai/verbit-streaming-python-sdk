@@ -38,12 +38,11 @@ class TestClientSDK(unittest.TestCase):
         self.client = WebSocketStreamingClient(access_token=self.access_token)
 
         self._media_status = {'started': False, 'finished': False}
+
         # init media generator
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
-    # @patch('websocket.WebSocket.__new__', mock_connect_fail):
-    # @patch.object(websocket.WebSocket, 'connect', MagicMock())
     def test_happy_flow(self):
         """
         Happy flow:
@@ -52,31 +51,19 @@ class TestClientSDK(unittest.TestCase):
             3. client has called 'close()' after EOS
         """
 
-        # self._patch_ws_client(websocket.WebSocket)
-        self._patch_ws_class()
+        # patch WebSocket with mocks
 
         # mock websocket receive data func
-        side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                       (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
-                       (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
 
-        # self._patch_ws_client(self.client._ws_client)
-
-
-        # check that ws is not yet connected
-        # check that ws is not yet connected
-        # self.assertIsNone(self.client._ws_client)
-        # self.assertFalse(self.client._ws_client.connected)
-        # mock_websocket.recv_data = MagicMock(side_effect=[])
-
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start streaming mocked media (and mock connection)
         response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
-
-        # after WebSocket exists - patch specifically with specific responses
-        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
         # final response should only arrive after the whole media is streamed:
         # so we can just wait for media to end initially:
@@ -84,13 +71,13 @@ class TestClientSDK(unittest.TestCase):
 
         # assert expected responses
         for i, response in enumerate(response_generator):
-            self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
+            self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
 
         # assert that the right number of responses where indeed all consumed and checked above
-        self.assertEqual(i, len(side_effect) - 1)
+        self.assertEqual(i, len(side_effects) - 1)
 
         # client close triggers sending an EOS message:
-        self.client._ws_client.send.assert_called_once()
+        self.client._ws_client.send.assert_called()
         arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
         self.assertIn('EOS', arg0_client_eos_send)
@@ -136,9 +123,7 @@ class TestClientSDK(unittest.TestCase):
             raise ex
 
         # mock
-        client._ws_client.connect = MagicMock()
-        client._ws_client.send_binary = MagicMock()
-        client._ws_client.send = MagicMock()
+        self._patch_ws_class()
 
         # start evil stream
         client.start_stream(media_generator=evil_media_gen())
@@ -150,17 +135,24 @@ class TestClientSDK(unittest.TestCase):
         client._on_media_error.assert_called_with(ex)
 
     def test_bad_media_generator(self):
-        """Example of testing media errors on the media thread."""
+        """Example of testing media errors on the media thread: media generator will yield an 'int' instead of 'bytes'."""
 
         # init client
         client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
-        self._patch_client(client)
+        self._patch_ws_class()
 
-        media_status = {'started': False}
+        media_status = {'started': False, 'finished': False}
 
         def bad_media_gen():
             media_status['started'] = True
+
+            # yield a valid chunk
+            yield b'3123123'
+
+            # yield an invalid chunk
             yield 3
+
+            media_status['finished'] = True
 
         # start evil stream
         client.start_stream(media_generator=bad_media_gen())
@@ -171,7 +163,7 @@ class TestClientSDK(unittest.TestCase):
         # assert we get the expected exception
         client._on_media_error.assert_called_once()
         first_call_arg = client._on_media_error.call_args[0][0]
-        self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg)}')
+        self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg).__name__}')
 
     # ========================================== #
     # Test difference early 'close()' scenarios: #
@@ -226,8 +218,8 @@ class TestClientSDK(unittest.TestCase):
         # mock websocket receive data func
         side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1'])]
-        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effect))
         # start stream and expect StopIteration on third `next` call on generator, when generator is finished.
         response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
         next(response_generator)
@@ -240,16 +232,42 @@ class TestClientSDK(unittest.TestCase):
 
     def test_disconnect_while_streaming(self):
         """Test expected behavior of server disconnection while streamming for different client classes."""
+
         # exported client reconnects
         self._run_mocked_disconnecting_server(WebSocketStreamingClient)
 
-        # 'Vanilla' client, does not reconnect by itself
+    def test_disconnect_while_streaming__vanilla(self):
+        """Vanilla' client, does not reconnect by itself"""
+
         with self.assertRaises(ConnectionError):
             self._run_mocked_disconnecting_server(WebSocketStreamingClient_Vanilla)
 
-        # 'Reconnect' client, does
+    def test_disconnect_while_streaming__reconnect(self):
+        """'Reconnect' client, reconnects"""
         self._run_mocked_disconnecting_server(WebSocketStreamingClient_Reconnect)
 
+    # ======= #
+    # Helpers #
+    # ======= #
+    def _test_close_common(self, close_msg):
+
+        # mock websocket receive data func
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_CLOSE, close_msg)]
+
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
+        # start streaming mocked media (and mock connection)
+        response_generator = self.client.start_stream(media_generator=self.infinite_valid_media_generator)
+
+        # self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
+
+        for i, response in enumerate(response_generator):
+            self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
+
+        # check all expected responses were consumed: meaning all OPCODE_TEXT messages:
+        self.assertEqual(i, len(side_effects) - 2)
 
     def _run_mocked_disconnecting_server(self, cls: WebSocketStreamingClient_Vanilla):
         """Run a scenario, creating a client instance and letting connect to a mocked server which disconnects and possibly resumes several times."""
@@ -257,8 +275,7 @@ class TestClientSDK(unittest.TestCase):
         # init client
         client = cls(access_token=self.access_token)
 
-        self._patch_client(client)
-
+        # MagicMock behavior with 'side_effect' parameter:
         # Given a list of side-effects: MagicMock will iterate through them:
         # 1. Given a class derived from Exception: the instance will be RAISED
         # 2. Give any other class, the instance will be RETURNED
@@ -277,33 +294,18 @@ class TestClientSDK(unittest.TestCase):
         exception_count = sum(1 for x in side_effects if isinstance(x, Exception))
         respense_count = len(side_effects) - exception_count
 
-        client._ws_client.recv_data = MagicMock(side_effect=side_effects)
-
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
         response_generator = client.start_stream(media_generator=self.valid_media_generator)
 
+        # consume all results except for the EOS:
         for i in range(respense_count - 1):
             response = next(response_generator)
             self.assertFalse(response['response']['is_end_of_stream'], f'Response {i} expected to be EOS False')
 
+        # and now the EOS:
         last_response = next(response_generator)
         self.assertTrue(last_response['response']['is_end_of_stream'], f'Response {i} expected to be EOS False')
 
-
-    # ======= #
-    # Helpers #
-    # ======= #
-    def _test_close_common(self, close_msg):
-
-        # mock websocket receive data func
-        side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                       (websocket.ABNF.OPCODE_CLOSE, close_msg)]
-        self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
-
-        # start streaming mocked media (and mock connection)
-        response_generator = self.client.start_stream(media_generator=self.infinite_valid_media_generator)
-
-        for i, response in enumerate(response_generator):
-            self.assertEqual(response, self._json_to_dict(side_effect[i][1]))
 
     @staticmethod
     def _fake_media_generator(num_samples, num_chunks, media_status: dict, delay_sec=0.1):
@@ -329,33 +331,19 @@ class TestClientSDK(unittest.TestCase):
 
 
 
+    def _patch_ws_class(self, responses_mock=MagicMock()):
+        """Patches the WebSocket class to have mocked methods, with success side-effects.
 
-# class PatcherTestCase(unittest.TestCase):
-#     def setUp(self):
-#         self.patcher = patch('some_module.some_object')
-#         self.mock_object = self.patcher.start()
+        Returns: unpatch() closure
 
-#     def tearDown(self):
-#         self.patcher.stop()
+        Uses 'patch.object()' for binding methods before instance creation, with access to 'self'
+        see: https://docs.python.org/3/library/unittest.mock-examples.html#mocking-unbound-methods
 
-#     def assertMockCallsEqual(self, *args):
-#       self.assertEqual(self.mock_object.call_args_list, list(args))
+        The mocked methods 'self' parameter will be called 'self_'
+        while 'self' is the 'unittest-class' self-parameter.
 
-#     def test_something(self):
-#       # Do something that impacts mock object
-#       pass
-
-#       # Make assertions about mock object state
-#       self.assertMockCallsEqual(
-#         call('arg_1_value', 'arg_2_value', 'arg_3_value'),  # call 1
-#         call('arg_1_value', 'arg_2_value', 'arg_3_value'),  # call 2
-#       )
-
-    # def _patch_client(client):
-    # see: https://docs.python.org/3/library/unittest.mock-examples.html#mocking-unbound-methods
-    # @staticmethod
-
-    def _patch_ws_class(self):
+        Installs a patch removing callback on teardown time using '.addCleanup()' which is the recommended practice.
+        """
 
         def mock_connect_ok(self_, *args, **kwargs):
             self_.connected = True
@@ -376,19 +364,11 @@ class TestClientSDK(unittest.TestCase):
             if not self_.connected:
                 raise ConnectionError('Mocked WS disconnected called recv_data().')
 
-            # if we've reached here, return default Mock() behavior.
-
-            return unittest.mock.DEFAULT
+            return responses_mock()
 
         def mock_close(self_, *args, **kwargs):
             self_.connected = False
             return unittest.mock.DEFAULT
-
-        # ws_client.connect = MagicMock(side_effect=mock_connect)
-        # ws_client.send_binary = MagicMock(side_effect=mock_send_binary)
-        # ws_client.recv_data = MagicMock(side_effect=mock_recv_data)
-        # ws_client.send = MagicMock()
-        # ws_client.close = MagicMock(side_effect=mock_close)
 
         # patch relevant methods
         patchers = (
@@ -403,12 +383,14 @@ class TestClientSDK(unittest.TestCase):
         for patcher in patchers:
             patcher.start()
 
-        def stop_patchers():
+        def unpatch():
             for patcher in patchers:
                 patcher.stop()
 
         # stop these patchers at end of current test-case
-        self.addCleanup(stop_patchers)
+        self.addCleanup(unpatch)
+
+        return unpatch
 
     @staticmethod
     def _json_to_dict(j: bytes):

@@ -398,7 +398,7 @@ class WebSocketStreamingClient_Vanilla:
 
         # other exceptions, do try closing
         except Exception as ex:
-            self._logger.error(f'_response_generator(): OTHER: Caught and re-raising an exception: type{type(ex)}:{ex}', )
+            self._logger.error(f'_response_generator(): OTHER: Caught and re-raising an exception: type {type(ex).__name__}:{ex}', )
             self._logger.debug(f'Trace from _response_generator():', exc_info=True)
             self._close_ws()
             raise
