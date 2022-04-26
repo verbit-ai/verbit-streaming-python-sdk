@@ -15,11 +15,6 @@ from tenacity import retry, wait_random_exponential, stop_after_delay
 from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
-# Default exported class: WebsocketStreamingClient
-# type alias for default exported Client class
-# WebSocketStreamingClient: typing.TypeAlias = "WebSocketStreamingClientReconnecting"  # python 3.10+ syntax
-# NOTE: defined at end of file, since it's a forward declaration
-
 
 ### Test:
 ### 2. disconnect changing network (wifi to cellular for example)
@@ -47,7 +42,7 @@ class WebsocketStreamingClientSingleConnection:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
-#
+
     # events
     EVENT_EOS = 'EOS'
 
@@ -56,8 +51,6 @@ class WebsocketStreamingClientSingleConnection:
         # assert arguments
         if not access_token:
             raise ValueError("Parameter 'access_token' is required")
-
-        ## TODO: member data-class, of all serializable state....
 
         # media config
         self._media_config = None
@@ -75,7 +68,6 @@ class WebsocketStreamingClientSingleConnection:
 
         # websocket
         self._ws_client = None
-        # self._ws_client = WebSocket(enable_multithread=True)
         self._ws_access_token = access_token
 
         # logger
@@ -121,8 +113,6 @@ class WebsocketStreamingClientSingleConnection:
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-
-        # NOTE: can be called several times, after connection is lost!
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
@@ -324,7 +314,6 @@ class WebsocketStreamingClientSingleConnection:
             self._logger.debug(f'EOS event sent')
 
         except Exception as err:
-            ## TODO: handle marking 'connection already closed' if already send in other thread...
             self._on_media_error(err)
 
     def _response_generator(self) -> typing.Generator[typing.Dict, None, None]:
