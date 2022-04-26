@@ -125,9 +125,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # connect to websocket
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
-
         self._connect_websocket(media_config=media_config, response_types=response_types)
-
         self._logger.info('WebSocket connected!')
 
         # start media sender thread
@@ -221,11 +219,10 @@ class WebsocketStreamingClientSingleConnection:
         # create WebSocket instance
         self._ws_client = WebSocket(enable_multithread=True)
 
-        ## XXX: Cover, or at least test..
-        # self._ws_client.timeout = 0.0
-        # self._ws_client.timeout = 0.01
-        # self._ws_client.timeout = 10.0
         self._ws_client.timeout = 20.0
+        # ^ this kind of timeout handles 'changing networks' nicely
+        # but might be too short for hopeful TCP recovery...
+        # TBD + that's why a watchdog thread can sort-of do 'both'
 
         def _retry_http_error_predicate(ex: WebSocketBadStatusException):
             retry_http_4xx_codes = [429]
@@ -466,10 +463,6 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
      2. Temporary lack of connection is often handled in the TCP layer,
         that is, disconnecting and reconnecting from a network does not mean issue a disconnect, and is still handles in the Vanilla case as well.
-
-     3. ?? *** ? Changing a logical network, such as the client being assigned a new IP, connecting to a different network
-        is not handled in this case, since the connection to the server does not fail yet, even though another route
-        might already be available. That case needs some Watch-Dog style task.
     """
 
     def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
