@@ -484,6 +484,23 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
         return self._reconnect_generator(response_generator)
 
+        # response_generator = self._start_stream()
+        # if response_generator is None:
+        #     # return an empty iterator
+        #     empty_generator = (_ for _ in ())
+        #     return empty_generator
+        # return self._reconnect_generator(response_generator)
+
+
+    # def _start_stream(self):
+    #     try:
+    #         return super().start_stream(self._media_generator, self._media_config, self._response_types)
+    #     except tenacity.RetryError:
+    #         self._logger.error('Gave up retrying during reconnection. stopping _reconnect_generator()')
+    #         return None
+    #         # do not raise further
+    #     # other exceptions and further raised
+
     def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
         """ Exception implying a server error, try to reconnect and keep yielding results afterwards.
 
