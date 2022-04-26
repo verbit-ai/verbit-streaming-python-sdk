@@ -230,7 +230,7 @@ class WebsocketStreamingClientSingleConnection:
         # self._ws_client.timeout = 0.0
         # self._ws_client.timeout = 0.01
         # self._ws_client.timeout = 10.0
-        self._ws_client.timeout = 30.0
+        self._ws_client.timeout = 20.0
 
         def _retry_http_error_predicate(ex: WebSocketBadStatusException):
             retry_http_4xx_codes = [429]
