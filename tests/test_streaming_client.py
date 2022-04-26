@@ -48,8 +48,6 @@ class TestClientSDK(unittest.TestCase):
             3. client has called 'close()' after EOS
         """
 
-        # patch WebSocket with mocks
-
         # mock websocket receive data func
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),

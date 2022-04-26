@@ -15,11 +15,6 @@ from tenacity import retry, wait_random_exponential, stop_after_delay
 from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
-
-### Test:
-### 2. disconnect changing network (wifi to cellular for example)
-
-
 @dataclass
 class MediaConfig:
     format: str = 'S16LE'       # signed 16-bit little-endian PCM
