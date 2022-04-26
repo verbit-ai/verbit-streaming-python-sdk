@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from tenacity import RetryError
 
 import verbit.streaming_client
-from verbit.streaming_client import WebSocketStreamingClient_Vanilla, WebSocketStreamingClient_Reconnect, WebSocketStreamingClient
+from verbit.streaming_client import WebsocketStreamingClientSingleConnection, WebSocketStreamingClientReconnecting, WebSocketStreamingClient
 
 from tests.common import RESPONSES
 
@@ -287,14 +287,14 @@ class TestClientSDK(unittest.TestCase):
         self._run_mocked_disconnecting_server(WebSocketStreamingClient)
 
     def test_disconnect_while_streaming__vanilla(self):
-        """Vanilla' client, does not reconnect by itself"""
+        """single-connection-client, does not reconnect by itself"""
 
         with self.assertRaises(ConnectionError):
-            self._run_mocked_disconnecting_server(WebSocketStreamingClient_Vanilla)
+            self._run_mocked_disconnecting_server(WebsocketStreamingClientSingleConnection)
 
     def test_disconnect_while_streaming__reconnect(self):
         """'Reconnect' client, reconnects"""
-        self._run_mocked_disconnecting_server(WebSocketStreamingClient_Reconnect)
+        self._run_mocked_disconnecting_server(WebSocketStreamingClientReconnecting)
 
     # ======= #
     # Helpers #
@@ -305,7 +305,8 @@ class TestClientSDK(unittest.TestCase):
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                        (websocket.ABNF.OPCODE_CLOSE, close_msg)]
+                        (websocket.ABNF.OPCODE_CLOSE, close_msg)
+                        ]
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
         # start streaming mocked media (and mock connection)
@@ -319,7 +320,7 @@ class TestClientSDK(unittest.TestCase):
         # check all expected responses were consumed: meaning all OPCODE_TEXT messages:
         self.assertEqual(i, len(side_effects) - 2)
 
-    def _run_mocked_disconnecting_server(self, cls: WebSocketStreamingClient_Vanilla):
+    def _run_mocked_disconnecting_server(self, cls: WebsocketStreamingClientSingleConnection):
         """Run a scenario, creating a client instance and letting connect to a mocked server which disconnects and possibly resumes several times."""
 
         # init client
@@ -339,7 +340,8 @@ class TestClientSDK(unittest.TestCase):
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         ConnectionResetError('Test disconnection before reconnect 3'),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS']),
+                       ]
 
         exception_count = sum(1 for x in side_effects if isinstance(x, Exception))
         respense_count = len(side_effects) - exception_count

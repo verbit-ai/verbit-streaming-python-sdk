@@ -15,14 +15,14 @@ from tenacity import retry, wait_random_exponential, stop_after_delay
 from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
+# Default exported class: WebsocketStreamingClient
+# type alias for default exported Client class
+# WebSocketStreamingClient: typing.TypeAlias = "WebSocketStreamingClientReconnecting"  # python 3.10+ syntax
+# NOTE: defined at end of file, since it's a forward declaration
+
 
 ### Test:
-### 1. retry messages format -> to display the failure each time (e.g. 'status 503 Service Temporarily Unavailable')
 ### 2. disconnect changing network (wifi to cellular for example)
-### 3. See Docker vs qa2
-
-### Add test and cover:
-### Server 5xx => retry connecting, 4xx => give up
 
 
 @dataclass
@@ -43,7 +43,7 @@ class ResponseType(IntFlag):
         return cls.__members__.get(title)
 
 
-class WebSocketStreamingClient_Vanilla:
+class WebsocketStreamingClientSingleConnection:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
@@ -132,6 +132,7 @@ class WebSocketStreamingClient_Vanilla:
         self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
 
         self._connect_websocket(media_config=media_config, response_types=response_types)
+
         self._logger.info('WebSocket connected!')
 
         # start media sender thread
@@ -251,7 +252,7 @@ class WebSocketStreamingClient_Vanilla:
             """Returning True - means retry, False means do not."""
             outcome: tenacity.Future = retry_state.outcome
             if outcome.failed:
-                ex:Exception = retry_state.outcome.exception()
+                ex:Exception = outcome.exception()
                 self._logger.warning(f'While connecting caught exception of type:{type(ex).__name__}: {ex}')
 
                 # Dispatch for Exceptions-types that should sometimes be retries
@@ -391,16 +392,15 @@ class WebSocketStreamingClient_Vanilla:
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
 
         # connection error -> don't try closing connection, this will raise another exception
-# BrokenPipeError is a ConnectionError
         except (ConnectionError, WebSocketException, TimeoutError, socket.timeout, socket.gaierror) as connection_error:
-            self._logger.error(f'_response_generator(): Caught and re-raising an exception: type: {type(connection_error).__name__}:{connection_error}')
+            self._logger.error(f'response_generator: Caught and re-raising a connection related exception: type: {type(connection_error).__name__}:{connection_error}')
             self._logger.debug(f'Trace from _response_generator():', exc_info=True)
             # re-raise for outer mechanisms to use
             raise
 
         # other exceptions, do try closing
         except Exception as ex:
-            self._logger.error(f'_response_generator(): OTHER: Caught and re-raising an exception: type {type(ex).__name__}:{ex}', )
+            self._logger.error(f'response_generator: Caught and re-raising an exception: type {type(ex).__name__}:{ex}', )
             self._logger.debug(f'Trace from _response_generator():', exc_info=True)
             self._close_ws()
             raise
@@ -455,8 +455,8 @@ class WebSocketStreamingClient_Vanilla:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
 
 
-class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
-    """Wrap the Vanilla client to reconnect to server and continue.
+class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnection):
+    """Wrap the WebsocketStreamingClientSingleConnection client to reconnect to server and continue.
 
     Notes:
      1. Handles the case where the server unexpectedly closed connection (for any reason)
@@ -469,17 +469,12 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
 
     def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
         super().__init__(access_token, on_media_error)
-        self._super_start_stream = None
 
     def start_stream(self,
                      media_generator,
                      media_config: MediaConfig = None,
                      response_types: ResponseType = ResponseType.Transcript) -> typing.Generator[typing.Dict, None, None]:
 
-        self._logger.info('WILL CONNECT NOW')
-
-        # capture arguments via a closure, explicit super() parameters are needed since this is not a method.
-        # self._super_start_stream = lambda: super(WebSocketStreamingClient_Reconnect, self).start_stream(media_generator, media_config, response_types)
         self._media_generator = media_generator
         self._media_config = media_config
         self._response_types = response_types
@@ -518,25 +513,15 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
 
                 # try reconnecting as soon as the exception's been caught
                 # and keep on yielding from the same generator
-
                 self._logger.debug('Will try reconnecting')
-                try:
-                    response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
-                except tenacity.RetryError:
-                    self._logger.error('Gave up retrying during reconnection. stopping _reconnect_generator()')
-                    ended = True
-                    # do not raise further
+                response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
 
-                except Exception:
-                    self._logger.exception('caught during attempting to reconnect, stopping _reconnect_generator()')
-                    ended = True
-                    raise
-
-            # any other exception ends iteration
             except Exception as ex:
-                self._logger.debug(f'Stack trace from reconnect_generator():, logging and ignoring exception {type(ex)}:{ex} .', exc_info=True)
+                self._logger.error(f'Exception while reconnecting: {type(ex).__name__}:{ex} .')
+                self._logger.debug(f'Stack trace from reconnect_generator():, logging and ignoring exception {type(ex).__name__}:{ex} .', exc_info=True)
                 # stop generator
                 ended = True
+                raise
 
 
     @staticmethod
@@ -557,5 +542,5 @@ class WebSocketStreamingClient_Reconnect(WebSocketStreamingClient_Vanilla):
                 return True
 
 
-# Default exported Client class
-WebSocketStreamingClient = WebSocketStreamingClient_Reconnect
+# type alias for default exported Client class
+WebSocketStreamingClient = WebSocketStreamingClientReconnecting
