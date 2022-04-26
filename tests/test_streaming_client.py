@@ -119,9 +119,7 @@ class TestClientSDK(unittest.TestCase):
         def mock_connect_fail_auth_401(self, *args, **kwargs):
             raise websocket.WebSocketBadStatusException(message="Mocked Handshake status %d %s",status_code=401, status_message="Mocked Authentication rejected")
 
-        # self._patch_ws_class()
-        # does not raises 'RetryError', but directly the raised err
-        # with patch('websocket.WebSocket.connect', mock_connect_fail_auth_401):
+        # does not raises 'RetryError', but directly the raised error
         with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail_auth_401):
             with self.assertRaises(websocket.WebSocketBadStatusException):
                 _ = client.start_stream(media_generator=self.valid_media_generator)
@@ -144,7 +142,8 @@ class TestClientSDK(unittest.TestCase):
 
         retry_err = cm_raises.exception
         last_exception = retry_err.last_attempt.exception()
-        # where the retried exception was raised the 502 error above
+
+        # while inside the 'retry': the raised exception was the '502 error' above
         self.assertIsInstance(last_exception, websocket.WebSocketBadStatusException)
         self.assertTrue(retry_err.last_attempt.failed)
 
@@ -311,8 +310,6 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
         # start streaming mocked media (and mock connection)
         response_generator = self.client.start_stream(media_generator=self.infinite_valid_media_generator)
-
-        # self.client._ws_client.recv_data = MagicMock(side_effect=side_effect)
 
         for i, response in enumerate(response_generator):
             self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
