@@ -38,6 +38,16 @@ class ResponseType(IntFlag):
         return cls.__members__.get(title)
 
 
+
+#: Connection related expected exception classes: should be extended as encountered in wild:
+#:
+#:   1. WebSocketException: Raise from remote WebSocket connection
+#:   2. ConnectionError: Raise when WebSocket is on the same local machine, seems to be using UnixPipes etc
+#:   3. TimeoutError: From OS-level 'select()' or similar operations, for example when physically disconnecting for a network results in a timeout
+#:   4. socket.timeout/socket.gaierror: Are merged into '3' in python 3.10, but required in earlier python versions
+#:
+CONNECTION_EXCEPTION_CLASSES = (WebSocketException, ConnectionError, TimeoutError, socket.timeout, socket.gaierror)
+
 class WebsocketStreamingClientSingleConnection:
 
     # constants
@@ -217,7 +227,7 @@ class WebsocketStreamingClientSingleConnection:
         # self._ws_client.timeout = 0.01
         # self._ws_client.timeout = 1.0
 
-        def retry_http_error_predicate(ex: WebSocketBadStatusException):
+        def _retry_http_error_predicate(ex: WebSocketBadStatusException):
             retry_http_4xx_codes = [429]
             dont_retry_http_5xx_codes = [501, 505, 506, 507, 508, 510]
 
@@ -252,10 +262,10 @@ class WebsocketStreamingClientSingleConnection:
 
             # Dispatch for Exception-types that may be retried
             if isinstance(ex, WebSocketBadStatusException):
-                should_retry = retry_http_error_predicate(ex)
+                should_retry = _retry_http_error_predicate(ex)
 
             # types that should always be retried
-            elif isinstance(ex, (ConnectionError, TimeoutError, socket.timeout, socket.gaierror, WebSocketException)):
+            elif isinstance(ex, CONNECTION_EXCEPTION_CLASSES):
                 should_retry = True
             else:
                 # Until seen in the wile: Other exception should not be retried
@@ -325,7 +335,7 @@ class WebsocketStreamingClientSingleConnection:
         For a description of ABNF opcodes, see: https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
         """
 
-        # ws is already connected at this point, see: .start_stream()
+        # ws is already connected at this point, see: start_stream()
         if self._ws_client is None or not self._ws_client.connected:
             raise RuntimeError('WebSocket client is disconnected!')
 
@@ -378,11 +388,11 @@ class WebsocketStreamingClientSingleConnection:
 
                 else:
 
-                    # future server versions might use more opcodes.
+                    # future server versions might use more opcodes
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
 
         # connection error -> don't try closing connection, this will raise another exception
-        except (ConnectionError, WebSocketException, TimeoutError, socket.timeout, socket.gaierror) as connection_error:
+        except CONNECTION_EXCEPTION_CLASSES as connection_error:
             self._logger.error(f'response_generator: Caught and re-raising a connection related exception: type: {type(connection_error).__name__}:{connection_error}')
             self._logger.debug(f'Trace from response_generator:', exc_info=True)
             # re-raise for outer mechanisms to use
@@ -390,7 +400,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # other exceptions, do try closing
         except Exception as ex:
-            self._logger.error(f'response_generator: Caught and re-raising an exception: type {type(ex).__name__}:{ex}', )
+            self._logger.error(f'response_generator: Caught and re-raising an exception: type {type(ex).__name__}:{ex}')
             self._logger.debug(f'Trace from response_generator():', exc_info=True)
             self._close_ws()
             raise
@@ -477,16 +487,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
         return self._reconnect_generator(response_generator)
 
     def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
-        """ Exception implying a server error, try to reconnect and keep yielding results afterwards.
-
-            XXX: TODO: Move this comment up - for other exceptions as well
-            Expected exception types:
-              1. WebSocketException: from remote WebSocket connection
-              2. ConnectionError: when WebSocket is on the same local machine, seems to be using Pipes etc
-              3. TimeoutError: From OS-level 'select()' or similar operations, for example when physically disconnecting for a network results in a timeout
-              4. socket.timeout/socket.gaierror: merged into '3' in python 3.10, required in earlier versions
-
-        """
+        """Returns a generator wrapping 'response_generator' while tries reconnecting in case of need and keeps on yielding results."""
 
         ended = False
 
@@ -498,7 +499,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
                 # response_generator exhausted without any exceptions
                 ended = True
 
-            except (ConnectionError, WebSocketException, TimeoutError, socket.timeout, socket.gaierror) as connection_error:
+            except CONNECTION_EXCEPTION_CLASSES as connection_error:
                 self._logger.debug(f'caught {type(connection_error).__name__}: {connection_error}, will try reconnect-and-continue')
 
                 # wait for other threads, that still access the web-socket to fail and stop
@@ -510,16 +511,16 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
                 response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
 
             except Exception as ex:
+                # all other exceptions stop the generator
                 self._logger.error(f'Exception while reconnecting: {type(ex).__name__}:{ex} .')
                 self._logger.debug(f'Trace from reconnect_generator():, logging and ignoring exception {type(ex).__name__}:{ex} .', exc_info=True)
-                # stop generator
                 ended = True
                 raise
 
 
     @staticmethod
     def _wait_for_thread(thread: Thread , timeout_step, global_timeout=10000.0, logger=None):
-        """Join thread with logging on result"""
+        """Join thread, with logging on success status, and a timeout."""
         waiting_for = 0.0
         while True:
             thread.join(timeout=timeout_step)
