@@ -147,7 +147,7 @@ class WebsocketStreamingClientSingleConnection:
         msg_json = json.dumps(msg)
 
         if self._ws_client is None or not self._ws_client.connected:
-            raise RuntimeError('.send_event() but WebSocket is not connected.')
+            raise RuntimeError('WebSocket client is disconnected!')
         # send to server
         self._ws_client.send(msg_json)
 
@@ -245,7 +245,7 @@ class WebsocketStreamingClientSingleConnection:
                 ex:Exception = outcome.exception()
                 self._logger.warning(f'While connecting caught exception of type:{type(ex).__name__}: {ex}')
 
-                # Dispatch for Exceptions-types that should sometimes be retries
+                # Dispatch for Exception-types that may be retried
                 if isinstance(ex, WebSocketBadStatusException):
                     should_retry = retry_http_error_predicate(ex)
                     if should_retry:
@@ -309,9 +309,9 @@ class WebsocketStreamingClientSingleConnection:
             self._logger.debug(f'Finished sending media')
 
             # signal end of stream
-            self._logger.debug(f'Will send EOS event')
+            self._logger.debug(f'Sending EOS event')
             self.send_event(event=self.EVENT_EOS)
-            self._logger.debug(f'EOS event sent')
+            self._logger.debug(f'Media sender finished')
 
         except Exception as err:
             self._on_media_error(err)
