@@ -165,10 +165,12 @@ class WebsocketStreamingClientSingleConnection:
             # create logger
             logger = logging.getLogger(self.__class__.__name__)
             logger.setLevel(logging.DEBUG)
+            # XXX : why is level set as 'DEBUG' by default?
 
             # create console handler and set level to debug
             ch = logging.StreamHandler()
             ch.setLevel(logging.DEBUG)
+            # XXX: ^ I've noticed if this is removed, also 'info()' logging disappears from my console...
 
             # create formatter
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -241,30 +243,29 @@ class WebsocketStreamingClientSingleConnection:
         def retry_predicate(retry_state: tenacity.RetryCallState):
             """Returning True - means retry, False means do not."""
             outcome: tenacity.Future = retry_state.outcome
-            if outcome.failed:
-                ex:Exception = outcome.exception()
-                self._logger.warning(f'While connecting caught exception of type:{type(ex).__name__}: {ex}')
-
-                # Dispatch for Exception-types that may be retried
-                if isinstance(ex, WebSocketBadStatusException):
-                    should_retry = retry_http_error_predicate(ex)
-                    if should_retry:
-                        self._logger.warning(f'should retry {type(ex).__name__} : {ex}')
-                    else:
-                        self._logger.warning(f'should not retry {type(ex).__name__} : {ex}')
-                    return should_retry
-
-                # types that should always be retried
-                if isinstance(ex, (ConnectionError, TimeoutError, socket.timeout, socket.gaierror, WebSocketException)):
-                    self._logger.warning(f'should retry : {type(ex).__name__} : {ex}')
-                    return True
-
-                # Other times should not be retried until identified
-                self._logger.warning(f'should not retry : {type(ex).__name__} : {ex}')
+            if not outcome.failed:
+                # Non-exception will not be retried
                 return False
 
-            # Non-exception will not be retried
-            return False
+            # outcome was an exception
+            ex:Exception = outcome.exception()
+
+            # Dispatch for Exception-types that may be retried
+            if isinstance(ex, WebSocketBadStatusException):
+                should_retry = retry_http_error_predicate(ex)
+
+            # types that should always be retried
+            elif isinstance(ex, (ConnectionError, TimeoutError, socket.timeout, socket.gaierror, WebSocketException)):
+                should_retry = True
+            else:
+                # Until seen in the wile: Other exception should not be retried
+                should_retry = False
+
+            self._logger.warning(f'Should retry? {should_retry}: exception type:{type(ex).__name__}: {ex}; while connecting')
+            # E.G.:
+            #  WARNING - Should retry? True: exception type:WebSocketBadStatusException: Handshake status 503 Service Temporarily Unavailable; while connecting
+
+            return should_retry
 
         @retry(wait=wait_random_exponential(multiplier=0.5),
                stop=stop_after_delay(self.max_connection_retry_seconds),
@@ -353,7 +354,7 @@ class WebsocketStreamingClientSingleConnection:
                     if received_eos_response:
                         response_type = ResponseType.from_name(resp['response']['type'])
                         if response_type is None:
-                            self._logger.warning(f"Received reply with unknown type field: {resp['response']['type']}.")
+                            self._logger.warning(f"Received reply with unknown 'type' field: {resp['response']['type']}.")
                         else:
                             self._eos_response_types |= response_type
 
@@ -383,14 +384,14 @@ class WebsocketStreamingClientSingleConnection:
         # connection error -> don't try closing connection, this will raise another exception
         except (ConnectionError, WebSocketException, TimeoutError, socket.timeout, socket.gaierror) as connection_error:
             self._logger.error(f'response_generator: Caught and re-raising a connection related exception: type: {type(connection_error).__name__}:{connection_error}')
-            self._logger.debug(f'Trace from _response_generator():', exc_info=True)
+            self._logger.debug(f'Trace from response_generator:', exc_info=True)
             # re-raise for outer mechanisms to use
             raise
 
         # other exceptions, do try closing
         except Exception as ex:
             self._logger.error(f'response_generator: Caught and re-raising an exception: type {type(ex).__name__}:{ex}', )
-            self._logger.debug(f'Trace from _response_generator():', exc_info=True)
+            self._logger.debug(f'Trace from response_generator():', exc_info=True)
             self._close_ws()
             raise
 
@@ -449,9 +450,11 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
     Notes:
      1. Handles the case where the server unexpectedly closed connection (for any reason)
+
      2. Temporary lack of connection is often handled in the TCP layer,
         that is, disconnecting and reconnecting from a network does not mean issue a disconnect, and is still handles in the Vanilla case as well.
-     3. *** ? Changing a logical network, such as the client being assigned a new IP, connecting to a different network
+
+     3. ?? *** ? Changing a logical network, such as the client being assigned a new IP, connecting to a different network
         is not handled in this case, since the connection to the server does not fail yet, even though another route
         might already be available. That case needs some Watch-Dog style task.
     """
@@ -473,26 +476,10 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
         return self._reconnect_generator(response_generator)
 
-        # response_generator = self._start_stream()
-        # if response_generator is None:
-        #     # return an empty iterator
-        #     empty_generator = (_ for _ in ())
-        #     return empty_generator
-        # return self._reconnect_generator(response_generator)
-
-
-    # def _start_stream(self):
-    #     try:
-    #         return super().start_stream(self._media_generator, self._media_config, self._response_types)
-    #     except tenacity.RetryError:
-    #         self._logger.error('Gave up retrying during reconnection. stopping _reconnect_generator()')
-    #         return None
-    #         # do not raise further
-    #     # other exceptions and further raised
-
     def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
         """ Exception implying a server error, try to reconnect and keep yielding results afterwards.
 
+            XXX: TODO: Move this comment up - for other exceptions as well
             Expected exception types:
               1. WebSocketException: from remote WebSocket connection
               2. ConnectionError: when WebSocket is on the same local machine, seems to be using Pipes etc
@@ -524,7 +511,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
             except Exception as ex:
                 self._logger.error(f'Exception while reconnecting: {type(ex).__name__}:{ex} .')
-                self._logger.debug(f'Stack trace from reconnect_generator():, logging and ignoring exception {type(ex).__name__}:{ex} .', exc_info=True)
+                self._logger.debug(f'Trace from reconnect_generator():, logging and ignoring exception {type(ex).__name__}:{ex} .', exc_info=True)
                 # stop generator
                 ended = True
                 raise
