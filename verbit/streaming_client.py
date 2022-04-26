@@ -295,8 +295,9 @@ class WebSocketStreamingClient_Vanilla:
             # raise further so that exception can be handled
             raise
 
-        except Exception:
-            self._logger.exception(f'Error connecting WebSocket!')
+        except Exception as ex:
+            self._logger.error(f'Error connecting WebSocket! Exception {type(ex).__name__}: {ex}')
+            self._logger.debug(f'Trace from Error connecting WebSocket', exc_info=True)
             raise
 
     def _default_on_media_error(self, err: Exception):
@@ -390,6 +391,7 @@ class WebSocketStreamingClient_Vanilla:
                     self._logger.warning(f'Unexpected WebSocket response: OPCODE={opcode}')
 
         # connection error -> don't try closing connection, this will raise another exception
+# BrokenPipeError is a ConnectionError
         except (ConnectionError, WebSocketException, TimeoutError, socket.timeout, socket.gaierror) as connection_error:
             self._logger.error(f'_response_generator(): Caught and re-raising an exception: type: {type(connection_error).__name__}:{connection_error}')
             self._logger.debug(f'Trace from _response_generator():', exc_info=True)

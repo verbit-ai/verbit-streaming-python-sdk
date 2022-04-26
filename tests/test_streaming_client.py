@@ -85,7 +85,7 @@ class TestClientSDK(unittest.TestCase):
         # check that ws is no longer connected
         self.assertFalse(self.client._ws_client.connected)
 
-    def test_ws_connect_refuses_raises(self):
+    def test_ws_connect_refuses_does_retry(self):
         """Client should raise an exception after re-tries timeout."""
         client = WebSocketStreamingClient(access_token=self.access_token)
 
@@ -95,9 +95,61 @@ class TestClientSDK(unittest.TestCase):
         def mock_connect_fail(self, *args, **kwargs):
             raise websocket.WebSocketException("Connection rejected by mocking")
 
-        with patch('websocket.WebSocket.connect', mock_connect_fail):
-            with self.assertRaises(RetryError):
+        # raises 'RetryError'
+        with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail):
+            with self.assertRaises(RetryError) as cm_raises:
                 _ = client.start_stream(media_generator=self.valid_media_generator)
+
+        retry_err = cm_raises.exception
+        last_exception = retry_err.last_attempt.exception()
+        # where the retried exception was raised the 502 error above
+        self.assertIsInstance(last_exception, websocket.WebSocketException)
+        self.assertTrue(retry_err.last_attempt.failed)
+
+        # at least one retry has been attempted
+        self.assertGreater(retry_err.last_attempt.attempt_number, 1)
+
+
+    def test_ws_connect_client_error_does_not_retry_401(self):
+        client = WebSocketStreamingClient(access_token=self.access_token)
+
+        short_timeout_for_testing = 0.01
+        client.max_connection_retry_seconds = short_timeout_for_testing
+
+        def mock_connect_fail_auth_401(self, *args, **kwargs):
+            raise websocket.WebSocketBadStatusException(message="Mocked Handshake status %d %s",status_code=401, status_message="Mocked Authentication rejected")
+
+        # self._patch_ws_class()
+        # does not raises 'RetryError', but directly the raised err
+        # with patch('websocket.WebSocket.connect', mock_connect_fail_auth_401):
+        with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail_auth_401):
+            with self.assertRaises(websocket.WebSocketBadStatusException):
+                _ = client.start_stream(media_generator=self.valid_media_generator)
+
+
+
+    def test_ws_connect_client_server_busy_error_does_retry_502(self):
+        client = WebSocketStreamingClient(access_token=self.access_token)
+
+        short_timeout_for_testing = 0.01
+        client.max_connection_retry_seconds = short_timeout_for_testing
+
+        def mock_connect_fail_bad_gateway_502(self, *args, **kwargs):
+            raise websocket.WebSocketBadStatusException(message="Mocked Handshake status %d %s",status_code=502, status_message="Mocked Bad Gateway")
+
+        # does raises 'RetryError'
+        with patch('websocket.WebSocket.connect', mock_connect_fail_bad_gateway_502):
+            with self.assertRaises(RetryError) as cm_raises:
+                _ = client.start_stream(media_generator=self.valid_media_generator)
+
+        retry_err = cm_raises.exception
+        last_exception = retry_err.last_attempt.exception()
+        # where the retried exception was raised the 502 error above
+        self.assertIsInstance(last_exception, websocket.WebSocketBadStatusException)
+        self.assertTrue(retry_err.last_attempt.failed)
+
+        # at least one retry has been attempted
+        self.assertGreater(retry_err.last_attempt.attempt_number, 1)
 
     def test_missing_required_init_params(self):
 
