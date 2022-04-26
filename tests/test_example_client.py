@@ -3,48 +3,43 @@ import json
 import struct
 import unittest
 import websocket
-from os import path
 from unittest.mock import MagicMock, patch
 
 from examples import example_client
 from tests.common import RESPONSES
 
-
-# Test mock global test-variables:
+# globals
 g_connection_fail_call_count = 0
 
-# Constants for mocks:
+# constants
 REJECT_CONNECTION_COUNT = 2
+HAPPY_CLOSE_MSG = struct.pack("!H", websocket.STATUS_GOING_AWAY) + b"Test generator ended is the reason."
+WS_REPLIES_SIDE_EFFECT = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
+                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS']),
+                          (websocket.ABNF.OPCODE_CLOSE, HAPPY_CLOSE_MSG)]
 
 
 # Helper Mocks to cover the 'example_client':
-def mock_connect_ok_with_sideeffect(self, *args, **kwargs):
-    self.connected = True
+def mock_connect_ok_with_sideeffect(_self, *_args, **_kwargs):
+    _self.connected = True
 
 
-def mock_close_with_sideeffect(self, *args, **kwargs):
-    self.connected = False
-
-HAPPY_CLOSE_MSG = struct.pack("!H", websocket.STATUS_GOING_AWAY) + b"Test generator ended is the reason."
-
-ws_replies_side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
-                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS']),
-                          (websocket.ABNF.OPCODE_CLOSE, HAPPY_CLOSE_MSG)
-                         ]
+def mock_close_with_sideeffect(_self, *_args, **_kwargs):
+    _self.connected = False
 
 
-def mock_connect_after_rejections(self, *args, **kwargs):
+def mock_connect_after_rejections(_self, *_args, **_kwargs):
     """Mock: Reject connections N times, then accept."""
     global g_connection_fail_call_count
     g_connection_fail_call_count += 1
     # return unittest.mock.DEFAULT
     if g_connection_fail_call_count <= REJECT_CONNECTION_COUNT:
         raise websocket.WebSocketException("Connection rejected by mocking")
-    self.connected = True
+    _self.connected = True
 
 
-def mock_start_stream(self, media_generator, media_config, response_types):
+def mock_start_stream(_self, *_args, **_kwargs):
     def mocked_responses():
         for i in range(3):
             resp_bytes = RESPONSES['happy_json_resp0']
@@ -69,7 +64,7 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.send_binary', MagicMock)
     @patch('websocket.WebSocket.send', MagicMock)
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
-    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
+    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=WS_REPLIES_SIDE_EFFECT))
     def test_example_client_mocked_ws(self):
         example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
@@ -78,7 +73,7 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.send_binary', MagicMock)
     @patch('websocket.WebSocket.send', MagicMock)
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
-    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=ws_replies_side_effect))
+    @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=WS_REPLIES_SIDE_EFFECT))
     def test_example_ws_retry_and_connect(self):
         example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
