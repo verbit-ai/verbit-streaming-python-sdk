@@ -113,7 +113,7 @@ class WebsocketStreamingClientSingleConnection:
     def start_stream(self,
                      media_generator,
                      media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator[typing.Dict, None, None]:
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
         Start streaming media and get back speech recognition responses from server.
 
@@ -306,7 +306,7 @@ class WebsocketStreamingClientSingleConnection:
         self._logger.error(f'Exception on media thread! type: {type(err).__name__} : {err}')
         self._logger.debug(f'Stack trace from media thread', exc_info=True)
 
-    def _media_sender_worker(self, media_generator: typing.Generator[bytes, None, None]):
+    def _media_sender_worker(self, media_generator: typing.Iterator[bytes]):
         """Thread function for emitting media from a user-given generator."""
 
         try:
@@ -327,7 +327,7 @@ class WebsocketStreamingClientSingleConnection:
         except Exception as err:
             self._on_media_error(err)
 
-    def _response_generator(self) -> typing.Generator[typing.Dict, None, None]:
+    def _response_generator(self) -> typing.Iterator[typing.Dict]:
         """
         Generator function for iterating responses.
 
@@ -475,7 +475,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
     def start_stream(self,
                      media_generator,
                      media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Generator[typing.Dict, None, None]:
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         self._media_generator = media_generator
         self._media_config = media_config
@@ -486,7 +486,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
         return self._reconnect_generator(response_generator)
 
-    def _reconnect_generator(self, response_generator) -> typing.Generator[typing.Dict, None, None]:
+    def _reconnect_generator(self, response_generator) -> typing.Iterator[typing.Dict]:
         """Returns a generator wrapping 'response_generator' while tries reconnecting in case of need and keeps on yielding results."""
 
         ended = False
