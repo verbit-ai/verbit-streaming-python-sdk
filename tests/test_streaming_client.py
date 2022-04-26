@@ -305,7 +305,8 @@ class TestClientSDK(unittest.TestCase):
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                        (websocket.ABNF.OPCODE_CLOSE, close_msg)]
+                        (websocket.ABNF.OPCODE_CLOSE, close_msg)
+                        ]
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
         # start streaming mocked media (and mock connection)
@@ -339,7 +340,8 @@ class TestClientSDK(unittest.TestCase):
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                         ConnectionResetError('Test disconnection before reconnect 3'),
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS']),
+                       ]
 
         exception_count = sum(1 for x in side_effects if isinstance(x, Exception))
         respense_count = len(side_effects) - exception_count

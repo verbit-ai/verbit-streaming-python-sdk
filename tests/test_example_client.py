@@ -1,5 +1,6 @@
 # Test covering 'example_client.py':
 import json
+import struct
 import unittest
 import websocket
 from os import path
@@ -24,10 +25,13 @@ def mock_connect_ok_with_sideeffect(self, *args, **kwargs):
 def mock_close_with_sideeffect(self, *args, **kwargs):
     self.connected = False
 
+HAPPY_CLOSE_MSG = struct.pack("!H", websocket.STATUS_GOING_AWAY) + b"Test generator ended is the reason."
 
 ws_replies_side_effect = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
                           (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
-                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+                          (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS']),
+                          (websocket.ABNF.OPCODE_CLOSE, HAPPY_CLOSE_MSG)
+                         ]
 
 
 def mock_connect_after_rejections(self, *args, **kwargs):
@@ -78,3 +82,5 @@ class TestExampleClient(unittest.TestCase):
     def test_example_ws_retry_and_connect(self):
         example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception
+
+    # TODO: cover failures, reconnections, 502, 401 cases on connect
