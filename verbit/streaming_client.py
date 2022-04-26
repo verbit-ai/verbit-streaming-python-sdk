@@ -145,7 +145,7 @@ class WebsocketStreamingClientSingleConnection:
         # return response generator
         return self._response_generator()
 
-    def send_event(self, event: str, payload: dict = None):
+    def _send_event_to_ws(self, ws_client: WebSocket, event: str, payload: dict = None):
 
         # use default payload if not provided
         payload = payload or dict()
@@ -156,10 +156,14 @@ class WebsocketStreamingClientSingleConnection:
         # serialize as json
         msg_json = json.dumps(msg)
 
+        # send to server
+        ws_client.send(msg_json)
+
+    def send_event(self, event: str, payload: dict = None):
         if self._ws_client is None or not self._ws_client.connected:
             raise RuntimeError('WebSocket client is disconnected!')
-        # send to server
-        self._ws_client.send(msg_json)
+
+        self._send_event_to_ws(self._ws_client, event, payload)
 
     def set_logger(self, logger: logging.Logger = None):
         """
@@ -225,7 +229,8 @@ class WebsocketStreamingClientSingleConnection:
         ## XXX: Cover, or at least test..
         # self._ws_client.timeout = 0.0
         # self._ws_client.timeout = 0.01
-        # self._ws_client.timeout = 1.0
+        # self._ws_client.timeout = 10.0
+        self._ws_client.timeout = 30.0
 
         def _retry_http_error_predicate(ex: WebSocketBadStatusException):
             retry_http_4xx_codes = [429]
@@ -311,17 +316,20 @@ class WebsocketStreamingClientSingleConnection:
 
         try:
 
+            # capture websocket, so that connect changes in other threads do not effect this loop
+            ws_client = self._ws_client
+
             # iterate media generator
             for chunk in media_generator:
 
                 # emit media chunk
-                self._ws_client.send_binary(chunk)
+                ws_client.send_binary(chunk)
 
             self._logger.debug(f'Finished sending media')
 
             # signal end of stream
             self._logger.debug(f'Sending EOS event')
-            self.send_event(event=self.EVENT_EOS)
+            self._send_event_to_ws(ws_client, event=self.EVENT_EOS)
             self._logger.debug(f'Media sender finished')
 
         except Exception as err:
