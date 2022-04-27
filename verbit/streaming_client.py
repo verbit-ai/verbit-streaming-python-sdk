@@ -111,7 +111,15 @@ class WebsocketStreamingClientSingleConnection:
 
     @socket_timeout.setter
     def socket_timeout(self, val):
-        """eventually sets:      https://docs.python.org/3/library/socket.html#socket.socket.settimeout """
+        """Sets low-level socket timeout, of the WebSocket.
+        Acceptable values:
+            None: Sets the system-dependent default in OS level
+            Float or Int: Sets number of seconds
+
+        For documentation this eventually sets:
+              https://docs.python.org/3/library/socket.html#socket.socket.settimeout
+         """
+
         if self._ws_client is not None:
             self._ws_client.timeout = val
         self._socket_timeout = val
@@ -226,6 +234,7 @@ class WebsocketStreamingClientSingleConnection:
         # failing the current (TCP-level) connection
         # and attempting to open a new one.
         # eventually sets: https://docs.python.org/3/library/socket.html#socket.socket.settimeout
+        # Setting a None value is ok, it will set the system-OS-level default
         self._ws_client.timeout = self.socket_timeout
 
         def _should_retry_http_error(retry_ex: WebSocketBadStatusException):
