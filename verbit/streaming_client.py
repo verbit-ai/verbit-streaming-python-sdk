@@ -82,6 +82,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # internal
         self._media_sender_thread = None
+        self._stop_media_thread = False
         self._response_types = 0
         self._eos_response_types = 0
 
@@ -134,6 +135,7 @@ class WebsocketStreamingClientSingleConnection:
             target=self._media_sender_worker,
             args=(media_generator, ),
             name='ws_media_sender')
+        self._stop_media_thread = False
         self._media_sender_thread.start()
 
         # return response generator
@@ -318,6 +320,11 @@ class WebsocketStreamingClientSingleConnection:
                 # emit media chunk
                 ws_client.send_binary(chunk)
 
+                if self._stop_media_thread:
+                    self._logger.debug(f'Stopping media thread')
+                    return
+
+
             self._logger.debug(f'Finished sending media')
 
             # signal end of stream
@@ -416,9 +423,13 @@ class WebsocketStreamingClientSingleConnection:
 
     def _close_ws(self):
         """Close WebSocket if still connected."""
+        # stop media thread
+        self._stop_media_thread = True
+
         if self._ws_client.connected:
             self._logger.debug(f'Closing WebSocket')
             self._ws_client.close(STATUS_GOING_AWAY)
+
 
     def _handle_socket_close(self, data):
         """
@@ -529,6 +540,10 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
     def _wait_for_thread(self, timeout_step: float, global_timeout: float):
         """Join thread, with logging on success status, and a timeout."""
         waiting_for = 0.0
+
+        # request media thread to logically stop
+        self._stop_media_thread = True
+
         while self._media_sender_thread.is_alive() and waiting_for < global_timeout:
             self._media_sender_thread.join(timeout=timeout_step)
             if self._media_sender_thread.is_alive():
