@@ -49,8 +49,8 @@ class WebsocketStreamingClientSingleConnection:
     CONNECTION_EXCEPTION_CLASSES = (WebSocketException, ConnectionError, TimeoutError, socket.timeout, socket.gaierror)
 
     # retry related http status codes
-    RETRY_HTTP_4XX_CODES = (429,)
-    NO_RETRY_HTTP_5XX_CODES = (501, 505, 506, 507, 508, 510)
+    RETRY_HTTP_CLIENT_CODES = (429,)
+    NO_RETRY_HTTP_SERVER_CODES = (501, 505, 506, 507, 508, 510)
 
     def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
 
@@ -147,7 +147,7 @@ class WebsocketStreamingClientSingleConnection:
         self._send_event(event, payload)
 
     def send_eos_event(self):
-        self._logger.debug(f'Sending EOS event')
+        """Send EOS event, denoting that all media chunks were sent"""
         self.send_event(event=self.EVENT_EOS)
 
     def set_logger(self, logger: logging.Logger = None):
@@ -210,20 +210,23 @@ class WebsocketStreamingClientSingleConnection:
         self._ws_client = WebSocket(enable_multithread=True)
 
         # set WebSocket client timeout
-        self._ws_client.timeout = 20.0
+        # Note: this is the maximum time before
+        # failing the current (TCP-level) connection
+        # and attempting to open a new one.
+        self._ws_client.timeout = 5  # TODO : revise
 
-        def _retry_http_error_predicate(retry_ex: WebSocketBadStatusException):
+        def _should_retry_http_error(retry_ex: WebSocketBadStatusException):
 
-            # specific 4xx Client-Errors trigger retry
-            if retry_ex.status_code in self.RETRY_HTTP_4XX_CODES:
+            # specific Client-Errors to retry
+            if retry_ex.status_code in self.RETRY_HTTP_CLIENT_CODES:
                 return True
 
-            # don't retry all other 4xx client-errors
-            if 400 <= retry_ex.status_code < 500:
+            # specific Server-Errors not to retry:
+            elif retry_ex.status_code in self.NO_RETRY_HTTP_SERVER_CODES:
                 return False
 
-            # specific 5xx Server-Errors not to retry:
-            if retry_ex.status_code in self.NO_RETRY_HTTP_5XX_CODES:
+            # don't retry all other 4xx client-errors
+            elif 400 <= retry_ex.status_code < 500:
                 return False
 
             # retry all other 5xx server-errors:
@@ -242,14 +245,14 @@ class WebsocketStreamingClientSingleConnection:
                 return False
 
             # outcome was an exception
-            outcome_ex: Exception = outcome.exception()
+            outcome_ex = outcome.exception()
 
             # default is to not retry
             should_retry = False
 
             # http errors that may be retried
             if isinstance(outcome_ex, WebSocketBadStatusException):
-                should_retry = _retry_http_error_predicate(outcome_ex)
+                should_retry = _should_retry_http_error(outcome_ex)
 
             # exception types that should always be retried
             elif isinstance(outcome_ex, self.CONNECTION_EXCEPTION_CLASSES):
@@ -303,6 +306,8 @@ class WebsocketStreamingClientSingleConnection:
         # serialize as json
         msg_json = json.dumps(msg)
 
+        self._logger.debug(f'Sending event: {event=}, {msg=}')
+
         # send to server
         self._ws_client.send(msg_json)
 
@@ -320,10 +325,12 @@ class WebsocketStreamingClientSingleConnection:
                 # emit media chunk
                 ws_client.send_binary(chunk)
 
+                # if stop requested
                 if self._stop_media_thread:
-                    self._logger.debug(f'Stopping media thread')
-                    return
 
+                    # stop before consuming next media chunk
+                    self._logger.debug(f'Stopping media sender')
+                    return
 
             self._logger.debug(f'Finished sending media')
 
@@ -429,7 +436,6 @@ class WebsocketStreamingClientSingleConnection:
         if self._ws_client.connected:
             self._logger.debug(f'Closing WebSocket')
             self._ws_client.close(STATUS_GOING_AWAY)
-
 
     def _handle_socket_close(self, data):
         """
