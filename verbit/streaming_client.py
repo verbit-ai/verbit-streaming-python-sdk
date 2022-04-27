@@ -475,6 +475,8 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
         # state for reconnection
         self._media_generator = None
+        self._media_config = None
+        self._response_types = None
 
     def start_stream(self,
                      media_generator,
