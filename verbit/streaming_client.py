@@ -75,6 +75,7 @@ class WebsocketStreamingClientSingleConnection:
         # WebSocket
         self._ws_client = None
         self._ws_access_token = access_token
+        self._socket_timeout = None
 
         # logger
         self._logger = None
@@ -103,6 +104,17 @@ class WebsocketStreamingClientSingleConnection:
     @max_connection_retry_seconds.setter
     def max_connection_retry_seconds(self, val: float):
         self._max_connection_retry_seconds = val
+
+    @property
+    def socket_timeout(self):
+        return self._socket_timeout
+
+    @socket_timeout.setter
+    def socket_timeout(self, val):
+        """eventually sets:      https://docs.python.org/3/library/socket.html#socket.socket.settimeout """
+        if self._ws_client is not None:
+            self._ws_client.timeout = val
+        self._socket_timeout = val
 
     # ========= #
     # Interface #
@@ -213,7 +225,8 @@ class WebsocketStreamingClientSingleConnection:
         # Note: this is the maximum time before
         # failing the current (TCP-level) connection
         # and attempting to open a new one.
-        self._ws_client.timeout = 5  # TODO : revise
+        # eventually sets: https://docs.python.org/3/library/socket.html#socket.socket.settimeout
+        self._ws_client.timeout = self.socket_timeout
 
         def _should_retry_http_error(retry_ex: WebSocketBadStatusException):
 
