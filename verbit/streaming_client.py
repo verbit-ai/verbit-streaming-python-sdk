@@ -106,23 +106,24 @@ class WebsocketStreamingClientSingleConnection:
         self._max_connection_retry_seconds = val
 
     @property
-    def socket_timeout(self):
+    def socket_timeout(self) -> typing.Union[None, float]:
         return self._socket_timeout
 
     @socket_timeout.setter
-    def socket_timeout(self, val):
-        """Sets low-level socket timeout, of the WebSocket.
-        Acceptable values:
+    def socket_timeout(self, timeout: typing.Union[None, float]):
+        """
+        Sets low-level socket timeout, of the WebSocket.
+
+        Possible values:
             None: Sets the system-dependent default in OS level
-            Float or Int: Sets number of seconds
+            float: Sets number of seconds
 
-        For documentation this eventually sets:
+        For further documentation, this eventually sets:
               https://docs.python.org/3/library/socket.html#socket.socket.settimeout
-         """
-
+        """
         if self._ws_client is not None:
-            self._ws_client.timeout = val
-        self._socket_timeout = val
+            self._ws_client.timeout = timeout
+        self._socket_timeout = timeout
 
     # ========= #
     # Interface #
