@@ -240,7 +240,7 @@ class WebsocketStreamingClientSingleConnection:
                 return False
 
             # outcome was an exception
-            outcome_ex = outcome.exception()
+            outcome_ex: Exception = outcome.exception()
 
             # default is to not retry
             should_retry = False

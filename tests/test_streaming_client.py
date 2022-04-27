@@ -62,7 +62,7 @@ class TestClientSDK(unittest.TestCase):
         self._wait_for_media_key(self._media_status, key='finished')
 
         # assert expected responses
-        i = None
+        i = 0
         for i, response in enumerate(response_generator):
             self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
 
