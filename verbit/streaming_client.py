@@ -249,11 +249,11 @@ class WebsocketStreamingClientSingleConnection:
                 return False
 
             # don't retry all other 4xx client-errors
-            elif 400 <= retry_ex.status_code < 500:
+            elif retry_ex.status_code in range(400, 500):
                 return False
 
             # retry all other 5xx server-errors:
-            elif 500 <= retry_ex.status_code < 600:
+            elif retry_ex.status_code in range(500, 600):
                 return True
 
             # don't retry all other errors codes
