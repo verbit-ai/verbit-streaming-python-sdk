@@ -222,7 +222,7 @@ class TestClientSDK(unittest.TestCase):
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
 
-    def test_close_unexpected_code(self):  # _Sometimes_ fails! since - media thread fails first.
+    def test_close_unexpected_code(self):
         """CLOSE OPCODE in middle, with unexpected code"""
 
         # mock client logger
@@ -273,17 +273,43 @@ class TestClientSDK(unittest.TestCase):
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
 
-    def test_disconnect_while_streaming(self):
-        """Test expected behavior of server disconnection while streamming for different client classes."""
+    def test_disconnect_while_streaming_reconnects(self):
+        """When server disconnects client reconnects and streams from where it left off."""
 
-        # exported client reconnects
-        self._run_mocked_disconnecting_server(WebSocketStreamingClient)
+        self._run_mocked_disconnecting_server(WebSocketStreamingClient, media_generator=self.infinite_valid_media_generator)
 
-    def test_disconnect_while_streaming__single_connection(self):
-        """single-connection-client, does not reconnect by itself"""
+    def test_disconnect_while_streaming_single_connection_raises(self):
+        """The single-connection-client, does not reconnect by itself, but raises."""
 
         with self.assertRaises(ConnectionError):
-            self._run_mocked_disconnecting_server(WebsocketStreamingClientSingleConnection)
+            self._run_mocked_disconnecting_server(WebsocketStreamingClientSingleConnection, media_generator=self.valid_media_generator)
+
+    def test_disconnect_while_streaming_no_retries_after_media_has_stopped(self):
+        """Will not attempt reconnection after stream is finished."""
+
+        finish_immediately_media_generator = self._fake_media_generator(num_samples=1, num_chunks=1, media_status=self._media_status, delay_sec=0.0)
+
+        # expect stop iteration, since the disconnection will make the StreamingClient not produce any future responses
+        with self.assertRaises(StopIteration):
+            self._run_mocked_disconnecting_server(WebSocketStreamingClient, media_generator=finish_immediately_media_generator)
+
+        # expect client warning, having run out Media
+        self.assertIn('Media stream already finished', self.client._logger.warning.call_args_list[0][0][0])
+
+
+
+    def test_deprecated_methods_are_deprecated(self):
+        """Deprecated methods exist, but are deprecated."""
+
+        # mock client logger
+        self.client._logger.warning = MagicMock()
+
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
+
+        _ = self.client.start_stream(media_generator=self.valid_media_generator)
+
+        self.assertIn('deprecated', self.client._logger.warning.call_args_list[0][0][0])
 
     # ======= #
     # Helpers #
@@ -308,11 +334,14 @@ class TestClientSDK(unittest.TestCase):
         # check all expected responses were consumed: meaning all OPCODE_TEXT messages:
         self.assertEqual(i, len(side_effects) - 2)
 
-    def _run_mocked_disconnecting_server(self, ws_client_cls):
+    def _run_mocked_disconnecting_server(self, ws_client_cls, media_generator):
         """Run a scenario, creating a client instance and letting connect to a mocked server which disconnects and possibly resumes several times."""
 
         # init client
-        client = ws_client_cls(access_token=self.access_token)
+        self.client = ws_client_cls(access_token=self.access_token)
+
+        # mock logger methods in order to check them
+        self.client._logger.warning = MagicMock()
 
         # MagicMock behavior with 'side_effect' parameter:
         # Given a list of side effects: MagicMock will iterate through them:
@@ -331,13 +360,13 @@ class TestClientSDK(unittest.TestCase):
                         (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
 
         exception_count = sum(1 for x in side_effects if isinstance(x, Exception))
-        respense_count = len(side_effects) - exception_count
+        response_count = len(side_effects) - exception_count
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
-        response_generator = client.start_with_media(media_generator=self.infinite_valid_media_generator)
+        response_generator = self.client.start_with_media(media_generator=media_generator)
 
         # consume all results except for the EOS:
-        for i in range(respense_count - 1):
+        for i in range(response_count - 1):
             response = next(response_generator)
             self.assertFalse(response['response']['is_end_of_stream'], f'Response {i} is expected to be EOS=False')
 
