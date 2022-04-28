@@ -155,7 +155,7 @@ class WebsocketStreamingClientSingleConnection:
         """
         Start a WebSocket session and get back speech recognition responses from the server, provided that the media
         is coming from an external source.
-        The media source should be configured when booking the session, via Verbit's Booking API (see README.md)
+        The media source should be configured when booking the session, via Verbit's Ordering API (see README.md)
 
         :param response_types: a bitmask Flag denoting which response type(s) should be returned by the service
 
@@ -229,6 +229,17 @@ class WebsocketStreamingClientSingleConnection:
                       media_generator: typing.Union[typing.Iterator[bytes], None] = None,
                       media_config: typing.Union[MediaConfig, None] = None,
                       response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+
+        """
+        Start a WebSocket session and get back speech recognition responses from the server.
+        Media may be provided via the `media_generator` parameter or via an external source (see README.md)
+
+        :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
+        :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
+        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
+
+        :return: a generator which yields speech recognition responses (transcript, captions or both)
+        """
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()

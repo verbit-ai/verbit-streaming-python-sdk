@@ -28,7 +28,7 @@ Also, the services which operate order placement and the actual streaming of med
 
 Please refer to our documentation here: [Ordering API](https://platform.verbit.co/api_docs).
 
-### Streaming audio and getting responses
+### Creating a WebSocketStreamingClient
 
 Create the client, and pass in the `Access Token` acquired from the Ordering API:
 
@@ -38,27 +38,17 @@ from verbit.streaming_client import WebSocketStreamingClient
 client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 ```
 
+### Streaming media via WebSocket
+
 Create a generator function which yields chunks of audio (objects supporting the `bytes-like` interface).
-The StreamingClient will use your generator as input, iterating it and sending each audio chunk to the Speech Recognition service.
+The `WebSocketStreamingClient` will use your generator as input, iterating it and sending each audio chunk to the Speech Recognition service.
 
 **Important: The Speech Recognition service expects the audio chunks to arrive at a realtime pace, or slower. Faster than realtime pace may cause the service to behave unexpectedly.**
 
-_Note:
-The current version of the service supports only raw PCM format (pcm_s16le - PCM signed 16-bit little-endian).
-Your generator should output audio chunks in this format._
 
-#### End of Stream
-When the media generator is exhausted, the client should send an End-of-Stream (non-binary) message to the service. 
-The End-of-Stream message should have the following structure:
-```
-{
-   "event": "EOS"
-}
-```
+#### Example
 
-### Example
-
-The following example reads audio from a WAV file and streams it to the Speech Recognition service:
+The following example reads audio from a WAV file and streams it to the Speech Recognition Service:
 
 ```python
 import wave
@@ -94,12 +84,39 @@ response_types = ResponseType.Transcript | ResponseType.Captions
     
 client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 
-response_generator = client.start_stream(media_generator=media_generator,
-                                         media_config=media_config,
-                                         response_types=response_types)
+response_generator = client.start_with_media(media_generator=media_generator,
+                                             media_config=media_config,
+                                             response_types=response_types)
 ```
 
-The client's `start_stream()` function returns a generator which can be iterated to fetch the Speech Recognition responses:
+### Providing media via an external source
+
+It is possible to use an external media source to provide media chunks to the Speech Recognition Service.
+To do so, you need to specify the relevant input method when booking the session via Verbit's Ordering API.
+
+In such a scenario, you should **not** provide a media generator to the `WebSocketStreamingClient`. 
+Connecting the `WebSocketStreamingClient` to the Speech Recognition Service will initiate the session
+and signal the server to start listening to the external media source.
+Therefore, **you should only connect the `WebSocketStreamingClient` to the service after the external media source is ready.**
+
+#### Example
+
+The following example connects to the Speech Recognition Service without providing a media generator:
+
+```python
+from verbit.streaming_client import WebSocketStreamingClient, ResponseType
+
+response_types = ResponseType.Transcript | ResponseType.Captions
+    
+client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
+
+response_generator = client.start_with_external_source(response_types=response_types)
+```
+
+
+### Getting responses
+
+The client's `start_with_media()` and `start_with_external_source()` methods return a generator which can be iterated to fetch the Speech Recognition responses:
 ```python
 # get recognition responses
 print('Waiting for responses ...')
@@ -110,6 +127,17 @@ for response in response_generator:
     print(f'{resp_type}: {alt0_transcript}')
 ```
 
+#### End of Stream
+When the media generator is exhausted, the client sends an End-of-Stream (non-binary) message to the service.
+
+In a scenario where the media is coming from an external source, it is the user's responsibility to send the End-of-Stream message to the service.
+
+The End-of-Stream message can be sent using the `send_eos_event()` method, and it has the following structure:
+```
+{
+   "event": "EOS"
+}
+```
 
 ### Responses
 
@@ -128,6 +156,18 @@ Only one "captions"-type response covering a specific time-span in the audio wil
 The `is_final` field is always `True` because no updates will be output for the same time-span. The `alternatives` array will always have only one item for captions.
 
     Example "captions" responses can be found in [examples/responses/captions.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/examples/responses/captions.md).
+
+### Error handling and recovery
+
+#### Initial connection
+In case the WebSocket client fails to establish the (initial) connection with the service (e.g. due to temporary unavailability), 
+it will perform exponential retry, up to `max_connection_retry_seconds` (configurable).
+
+#### During a session
+In case the connection to the service is dropped during a session, the behavior of the WebSocket client will depend on the implementation chosen by the user.
+This client SDK contains two implementations, which have the same interface, but differ in their error handling behavior:
+1. `WebSocketStreamingClientSingleConnection` - the base implementation; does not attempt to reconnect in case the connection was dropped prematurely. It can be useful, for example, if you would like to implement your own connection error handling logic.
+2. `WebSocketStreamingClient` - the default implementation; will attempt to reconnect in case the connection was closed prematurely, as many times as needed, until the final response is received (or some non-retryable error occurrs).
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.

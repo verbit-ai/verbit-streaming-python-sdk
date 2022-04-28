@@ -37,7 +37,7 @@ class TestClientSDK(unittest.TestCase):
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
-    def test_happy_flow(self):
+    def test_happy_flow_with_media(self):
         """
         Happy flow:
             1. responses arrive
@@ -60,6 +60,49 @@ class TestClientSDK(unittest.TestCase):
         # final response should only arrive after the whole media is streamed:
         # so we can just wait for media to end initially:
         self._wait_for_media_key(self._media_status, key='finished')
+
+        # assert expected responses
+        i = 0
+        for i, response in enumerate(response_generator):
+            self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
+
+        # assert that the right number of responses where indeed all consumed and checked above
+        self.assertEqual(i, len(side_effects) - 1)
+
+        # client close triggers sending an EOS message:
+        self.client._ws_client.send.assert_called()
+        arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
+        self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
+        self.assertIn('EOS', arg0_client_eos_send)
+
+        # assert client closed after EOS response
+        self.client._ws_client.close.assert_called_once()
+
+        # check that ws is no longer connected
+        self.assertFalse(self.client._ws_client.connected)
+
+    def test_happy_flow_external_source(self):
+        """
+        Happy flow:
+            1. responses arrive
+            2. until there's a response with EOS
+            3. client has called 'close()' after EOS
+        """
+
+        # mock websocket receive data func
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
+
+        # start client with no media generator (and mock connection)
+        response_generator = self.client.start_with_external_source()
+        self.client._ws_client.connect.assert_called_once()
+        self.assertTrue(self.client._ws_client.connected)
+
+        # send end-of-stream signal
+        self.client.send_eos_event()
 
         # assert expected responses
         i = 0
@@ -208,9 +251,9 @@ class TestClientSDK(unittest.TestCase):
         first_call_arg = client._on_media_error.call_args[0][0]
         self.assertIsInstance(first_call_arg, TypeError, f'Given type: {type(first_call_arg).__name__}')
 
-    # ========================================== #
-    # Test difference early 'close()' scenarios: #
-    # ========================================== #
+    # ========================================= #
+    # Test different early 'close()' scenarios: #
+    # ========================================= #
     def test_close_response(self):
         """CLOSE OPCODE Arrived before a response with EOS, that is, stream stopped in the middle."""
 
@@ -295,8 +338,6 @@ class TestClientSDK(unittest.TestCase):
 
         # expect client warning, having run out Media
         self.assertIn('Media stream already finished', self.client._logger.warning.call_args_list[0][0][0])
-
-
 
     def test_deprecated_methods_are_deprecated(self):
         """Deprecated methods exist, but are deprecated."""
