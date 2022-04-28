@@ -86,6 +86,7 @@ class WebsocketStreamingClientSingleConnection:
         self._stop_media_thread = False
         self._response_types = 0
         self._eos_response_types = 0
+        self._has_media_completed = False
 
         # error handling
         self._on_media_error = on_media_error or self._default_on_media_error
@@ -125,6 +126,11 @@ class WebsocketStreamingClientSingleConnection:
             self._ws_client.timeout = timeout
         self._socket_timeout = timeout
 
+
+    @property
+    def has_media_completed(self):
+        return self._has_media_completed
+
     # ========= #
     # Interface #
     # ========= #
@@ -141,6 +147,11 @@ class WebsocketStreamingClientSingleConnection:
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
+
+        if self.has_media_completed: ## TODO: add case about 'streamless' connection to this condition
+            self._logger.warning('Media has already completed, not connecting as current server implementation will be ideal forever in this case.')
+            empty_iterator = iter([])
+            return empty_iterator
 
         # use default media config if not provided
         media_config = media_config or MediaConfig()
@@ -169,6 +180,8 @@ class WebsocketStreamingClientSingleConnection:
 
     def send_eos_event(self):
         """Send EOS event, denoting that all media chunks were sent"""
+
+        self._has_media_completed = True
         self.send_event(event=self.EVENT_EOS)
 
     def set_logger(self, logger: logging.Logger = None):
@@ -357,7 +370,7 @@ class WebsocketStreamingClientSingleConnection:
 
             self._logger.debug(f'Finished sending media')
 
-            # signal end of stream
+            # signal end of media-stream
             self.send_eos_event()
 
             self._logger.debug(f'Media sender finished')
