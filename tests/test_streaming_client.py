@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from tenacity import RetryError
 
 import verbit.streaming_client
-from verbit.streaming_client import WebsocketStreamingClientSingleConnection, WebSocketStreamingClientReconnecting, WebSocketStreamingClient
+from verbit.streaming_client import WebsocketStreamingClientSingleConnection, WebSocketStreamingClient
 
 from tests.common import RESPONSES
 
@@ -285,10 +285,6 @@ class TestClientSDK(unittest.TestCase):
         with self.assertRaises(ConnectionError):
             self._run_mocked_disconnecting_server(WebsocketStreamingClientSingleConnection)
 
-    def test_disconnect_while_streaming__reconnecting(self):
-        """Reconnecting client, attempts reconnection"""
-        self._run_mocked_disconnecting_server(WebSocketStreamingClientReconnecting)
-
     # ======= #
     # Helpers #
     # ======= #
@@ -338,7 +334,7 @@ class TestClientSDK(unittest.TestCase):
         respense_count = len(side_effects) - exception_count
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
-        response_generator = client.start_stream(media_generator=self.valid_media_generator)
+        response_generator = client.start_stream(media_generator=self.infinite_valid_media_generator)
 
         # consume all results except for the EOS:
         for i in range(respense_count - 1):
