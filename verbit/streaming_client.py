@@ -148,7 +148,7 @@ class WebsocketStreamingClientSingleConnection:
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-        return self._start_stream(media_generator=media_generator, media_config=media_config, response_types=response_types)
+        return self._connect_and_start(media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     def start_with_external_source(self,
                                    response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
@@ -161,7 +161,7 @@ class WebsocketStreamingClientSingleConnection:
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-        return self._start_stream(response_types=response_types)
+        return self._connect_and_start(response_types=response_types)
 
     def start_stream(self,
                      media_generator: typing.Iterator[bytes],
@@ -180,7 +180,7 @@ class WebsocketStreamingClientSingleConnection:
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
         self._logger.warning('This method is deprecated and superceded by `start_with_media`, and is currently kept for backward compatibility only.')
-        return self._start_stream(media_generator=media_generator, media_config=media_config, response_types=response_types)
+        return self._connect_and_start(media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     def send_event(self, event: str, payload: dict = None):
         if self._ws_client is None or not self._ws_client.connected:
@@ -225,10 +225,10 @@ class WebsocketStreamingClientSingleConnection:
     # ======== #
     # Internal #
     # ======== #
-    def _start_stream(self,
-                      media_generator: typing.Union[typing.Iterator[bytes], None] = None,
-                      media_config: typing.Union[MediaConfig, None] = None,
-                      response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+    def _connect_and_start(self,
+                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
+                           media_config: typing.Union[MediaConfig, None] = None,
+                           response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         """
         Start a WebSocket session and get back speech recognition responses from the server.
@@ -435,7 +435,7 @@ class WebsocketStreamingClientSingleConnection:
         For a description of ABNF opcodes, see: https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
         """
 
-        # WebSocket should already be connected at this point, see: _start_stream()
+        # WebSocket should already be connected at this point, see: _connect_and_start()
         if self._ws_client is None or not self._ws_client.connected:
             raise RuntimeError('WebSocket client is disconnected!')
 
@@ -578,10 +578,10 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
         # state for reconnection
         self._media_generator = None
 
-    def _start_stream(self,
-                      media_generator: typing.Union[typing.Iterator[bytes], None] = None,
-                      media_config: typing.Union[MediaConfig, None] = None,
-                      response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+    def _connect_and_start(self,
+                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
+                           media_config: typing.Union[MediaConfig, None] = None,
+                           response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         # store state for reconnection
         self._media_generator = media_generator
@@ -589,7 +589,7 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
         self._response_types = response_types
 
         # start stream now
-        response_generator = super()._start_stream(self._media_generator, self._media_config, self._response_types)
+        response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
 
         return self._reconnect_generator(response_generator)
 
@@ -625,7 +625,7 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
 
                 # try reconnecting and keep on yielding from the same generator
                 self._logger.debug('Trying to reconnect')
-                response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
+                response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
 
             # catch all other exceptions and stop the generator
             except Exception as ex:

@@ -89,14 +89,17 @@ response_generator = client.start_with_media(media_generator=media_generator,
                                              response_types=response_types)
 ```
 
+_Compatibility note: the method `start_stream` is considered deprecated as of version 0.9.0, and is superceded by `start_with_media`, to explicitly denote whether a media generator is to be provided or not. 
+The method `start_stream` is still kept, for backward-compatibility purposes, however we strongly recommend using `start_with_media` when providing a media generator, to avoid potential confusion._
+
 ### Providing media via an external source
 
-It is possible to use an external media source to provide media chunks to the Speech Recognition Service.
+It is possible to use an external media source to provide media to the Speech Recognition Service.
 To do so, you need to specify the relevant input method when booking the session via Verbit's Ordering API.
 
 In such a scenario, you should **not** provide a media generator to the `WebSocketStreamingClient`. 
 Connecting the `WebSocketStreamingClient` to the Speech Recognition Service will initiate the session
-and signal the server to start listening to the external media source.
+and signal the server to start consuming media from the external media source.
 Therefore, **you should only connect the `WebSocketStreamingClient` to the service after the external media source is ready.**
 
 #### Example
@@ -160,8 +163,8 @@ The `is_final` field is always `True` because no updates will be output for the 
 ### Error handling and recovery
 
 #### Initial connection
-In case the WebSocket client fails to establish the (initial) connection with the service (e.g. due to temporary unavailability), 
-it will perform exponential retry, up to `max_connection_retry_seconds` (configurable).
+In case the WebSocket client fails to establish the initial connection with the service, e.g. due to temporary unavailability, 
+it will perform exponential retry, up to [`max_connection_retry_seconds`](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/verbit/streaming_client.py#L108) (configurable).
 
 #### During a session
 In case the connection to the service is dropped during a session, the behavior of the WebSocket client will depend on the implementation chosen by the user.
