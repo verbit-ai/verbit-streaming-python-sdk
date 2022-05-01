@@ -339,19 +339,6 @@ class TestClientSDK(unittest.TestCase):
         # expect client warning, having run out Media
         self.assertIn('Media stream already finished', self.client._logger.warning.call_args_list[0][0][0])
 
-    def test_deprecated_methods_are_deprecated(self):
-        """Deprecated methods exist, but are deprecated."""
-
-        # mock client logger
-        self.client._logger.warning = MagicMock()
-
-        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
-        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
-
-        _ = self.client.start_stream(media_generator=self.valid_media_generator)
-
-        self.assertIn('deprecated', self.client._logger.warning.call_args_list[0][0][0])
-
     # ======= #
     # Helpers #
     # ======= #
