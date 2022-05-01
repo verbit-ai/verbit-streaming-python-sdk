@@ -84,13 +84,10 @@ response_types = ResponseType.Transcript | ResponseType.Captions
     
 client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
 
-response_generator = client.start_with_media(media_generator=media_generator,
-                                             media_config=media_config,
-                                             response_types=response_types)
+response_generator = client.start_stream(media_generator=media_generator,
+                                         media_config=media_config,
+                                         response_types=response_types)
 ```
-
-_Compatibility note: the method `start_stream` is considered deprecated as of version 0.9.0, and is superceded by `start_with_media`, to explicitly denote whether a media generator is to be provided or not. 
-The method `start_stream` is still kept, for backward-compatibility purposes, however we strongly recommend using `start_with_media` when providing a media generator, to avoid potential confusion._
 
 ### Providing media via an external source
 
@@ -119,7 +116,7 @@ response_generator = client.start_with_external_source(response_types=response_t
 
 ### Getting responses
 
-The client's `start_with_media()` and `start_with_external_source()` methods return a generator which can be iterated to fetch the Speech Recognition responses:
+The client's `start_stream()` and `start_with_external_source()` methods return a generator which can be iterated to fetch the Speech Recognition responses:
 ```python
 # get recognition responses
 print('Waiting for responses ...')

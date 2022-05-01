@@ -39,7 +39,7 @@ def mock_connect_after_rejections(_self, *_args, **_kwargs):
     _self.connected = True
 
 
-def mock_start_with_media(_self, *_args, **_kwargs):
+def mock_start_stream(_self, *_args, **_kwargs):
     def mocked_responses():
         for i in range(3):
             resp_bytes = RESPONSES['happy_json_resp0']
@@ -55,7 +55,7 @@ class TestExampleClient(unittest.TestCase):
         self.access_token = "fake-token"
         self.mock_media_gen = (b'\x01' for _ in range(2))
 
-    @patch('verbit.streaming_client.WebSocketStreamingClient.start_with_media', mock_start_with_media)
+    @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
     def test_example_client_mocked_streams(self):
         example_client.example_streaming_client(self.access_token, self.mock_media_gen)
         # completion with no exception

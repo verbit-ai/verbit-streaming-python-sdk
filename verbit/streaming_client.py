@@ -135,10 +135,10 @@ class WebsocketStreamingClientSingleConnection:
     # ========= #
     # Interface #
     # ========= #
-    def start_with_media(self,
-                         media_generator: typing.Iterator[bytes],
-                         media_config: MediaConfig = None,
-                         response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+    def start_stream(self,
+                     media_generator: typing.Iterator[bytes],
+                     media_config: MediaConfig = None,
+                     response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
         Start streaming media and get back speech recognition responses from server.
 
@@ -162,25 +162,6 @@ class WebsocketStreamingClientSingleConnection:
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
         return self._connect_and_start(response_types=response_types)
-
-    def start_stream(self,
-                     media_generator: typing.Iterator[bytes],
-                     media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
-        """
-        Start streaming media and get back speech recognition responses from server.
-
-        Note: This method is deprecated and superceded by `start_with_media`, and is currently kept
-        for backward compatibility only.
-
-        :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
-        :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
-        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
-
-        :return: a generator which yields speech recognition responses (transcript, captions or both)
-        """
-        self._logger.warning('This method is deprecated and superceded by `start_with_media`, and is currently kept for backward compatibility only.')
-        return self._connect_and_start(media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     def send_event(self, event: str, payload: dict = None):
         if self._ws_client is None or not self._ws_client.connected:

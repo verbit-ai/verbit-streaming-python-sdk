@@ -53,7 +53,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start streaming mocked media (and mock connection)
-        response_generator = self.client.start_with_media(media_generator=self.valid_media_generator)
+        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
 
@@ -137,7 +137,7 @@ class TestClientSDK(unittest.TestCase):
         # raises 'RetryError'
         with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail):
             with self.assertRaises(RetryError) as cm_raises:
-                _ = client.start_with_media(media_generator=self.valid_media_generator)
+                _ = client.start_stream(media_generator=self.valid_media_generator)
 
         retry_err = cm_raises.exception
         last_exception = retry_err.last_attempt.exception()
@@ -161,7 +161,7 @@ class TestClientSDK(unittest.TestCase):
         # does not raise 'RetryError', but directly the raised error
         with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail_auth_401):
             with self.assertRaises(websocket.WebSocketBadStatusException):
-                _ = client.start_with_media(media_generator=self.valid_media_generator)
+                _ = client.start_stream(media_generator=self.valid_media_generator)
 
     def test_ws_connect_client_server_busy_error_does_retry_502(self):
         client = WebSocketStreamingClient(access_token=self.access_token)
@@ -175,7 +175,7 @@ class TestClientSDK(unittest.TestCase):
         # does raise 'RetryError'
         with patch('websocket.WebSocket.connect', mock_connect_fail_bad_gateway_502):
             with self.assertRaises(RetryError) as cm_raises:
-                _ = client.start_with_media(media_generator=self.valid_media_generator)
+                _ = client.start_stream(media_generator=self.valid_media_generator)
 
         retry_err = cm_raises.exception
         last_exception = retry_err.last_attempt.exception()
@@ -211,7 +211,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class()
 
         # start evil stream
-        client.start_with_media(media_generator=evil_media_gen())
+        client.start_stream(media_generator=evil_media_gen())
 
         # wait for media-thread to actually run
         self._wait_for_media_key(media_status=media_status, key='started')
@@ -241,7 +241,7 @@ class TestClientSDK(unittest.TestCase):
             media_status['finished'] = True
 
         # start evil stream
-        client.start_with_media(media_generator=bad_media_gen())
+        client.start_stream(media_generator=bad_media_gen())
 
         # wait for media-thread to actually run
         self._wait_for_media_key(media_status=media_status, key='started')
@@ -307,7 +307,7 @@ class TestClientSDK(unittest.TestCase):
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effect))
         # start stream and expect StopIteration on third `next` call on generator, when generator is finished.
-        response_generator = self.client.start_with_media(media_generator=self.valid_media_generator)
+        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
         next(response_generator)
         next(response_generator)
         with self.assertRaises(Exception):
@@ -366,7 +366,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start streaming mocked media (and mock connection)
-        response_generator = self.client.start_with_media(media_generator=self.infinite_valid_media_generator)
+        response_generator = self.client.start_stream(media_generator=self.infinite_valid_media_generator)
 
         i = None
         for i, response in enumerate(response_generator):
@@ -404,7 +404,7 @@ class TestClientSDK(unittest.TestCase):
         response_count = len(side_effects) - exception_count
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
-        response_generator = self.client.start_with_media(media_generator=media_generator)
+        response_generator = self.client.start_stream(media_generator=media_generator)
 
         # consume all results except for the EOS:
         for i in range(response_count - 1):
