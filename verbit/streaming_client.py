@@ -81,9 +81,12 @@ class WebsocketStreamingClientSingleConnection:
         self._logger = None
         self.set_logger()
 
-        # internal
+        # media
         self._media_sender_thread = None
         self._stop_media_thread = False
+        self._media_stream_finished = False
+
+        # responses
         self._response_types = 0
         self._eos_response_types = 0
 
@@ -96,6 +99,10 @@ class WebsocketStreamingClientSingleConnection:
     @property
     def ws_url(self) -> str:
         return f'{self._schema}://{self._base_url}{self._server_path}'
+
+    @property
+    def media_stream_finished(self):
+        return self._media_stream_finished
 
     @property
     def max_connection_retry_seconds(self) -> float:
@@ -129,7 +136,7 @@ class WebsocketStreamingClientSingleConnection:
     # Interface #
     # ========= #
     def start_stream(self,
-                     media_generator,
+                     media_generator: typing.Iterator[bytes],
                      media_config: MediaConfig = None,
                      response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
@@ -141,26 +148,20 @@ class WebsocketStreamingClientSingleConnection:
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
+        return self._connect_and_start(media_generator=media_generator, media_config=media_config, response_types=response_types)
 
-        # use default media config if not provided
-        media_config = media_config or MediaConfig()
-        self._response_types = response_types
+    def start_with_external_source(self,
+                                   response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+        """
+        Start a WebSocket session and get back speech recognition responses from the server, provided that the media
+        is coming from an external source.
+        The media source should be configured when booking the session, via Verbit's Ordering API (see README.md)
 
-        # connect to WebSocket
-        self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
-        self._connect_websocket(media_config=media_config, response_types=response_types)
-        self._logger.info('WebSocket connected!')
+        :param response_types: a bitmask Flag denoting which response type(s) should be returned by the service
 
-        # start media sender thread
-        self._media_sender_thread = Thread(
-            target=self._media_sender_worker,
-            args=(media_generator, ),
-            name='ws_media_sender')
-        self._stop_media_thread = False
-        self._media_sender_thread.start()
-
-        # return response generator
-        return self._response_generator()
+        :return: a generator which yields speech recognition responses (transcript, captions or both)
+        """
+        return self._connect_and_start(response_types=response_types)
 
     def send_event(self, event: str, payload: dict = None):
         if self._ws_client is None or not self._ws_client.connected:
@@ -169,6 +170,7 @@ class WebsocketStreamingClientSingleConnection:
 
     def send_eos_event(self):
         """Send EOS event, denoting that all media chunks were sent"""
+        self._media_stream_finished = True
         self.send_event(event=self.EVENT_EOS)
 
     def set_logger(self, logger: logging.Logger = None):
@@ -204,6 +206,47 @@ class WebsocketStreamingClientSingleConnection:
     # ======== #
     # Internal #
     # ======== #
+    def _connect_and_start(self,
+                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
+                           media_config: typing.Union[MediaConfig, None] = None,
+                           response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+
+        """
+        Start a WebSocket session and get back speech recognition responses from the server.
+        Media may be provided via the `media_generator` parameter or via an external source (see README.md)
+
+        :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
+        :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
+        :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
+
+        :return: a generator which yields speech recognition responses (transcript, captions or both)
+        """
+
+        # use default media config if not provided
+        media_config = media_config or MediaConfig()
+        self._response_types = response_types
+
+        # protect against connecting after media stream finished
+        if self._media_stream_finished:
+            raise RuntimeError('Media stream already finished! Will not connect to WebSocket as server will not return any responses.')
+
+        # connect to WebSocket
+        self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
+        self._connect_websocket(media_config=media_config, response_types=response_types)
+        self._logger.info('WebSocket connected!')
+
+        # start media sender thread
+        if media_generator is not None:
+            self._media_sender_thread = Thread(
+                target=self._media_sender_worker,
+                args=(media_generator, ),
+                name='ws_media_sender')
+            self._stop_media_thread = False
+            self._media_sender_thread.start()
+
+        # return response generator
+        return self._response_generator()
+
     def _connect_websocket(self, media_config: MediaConfig, response_types: ResponseType):
         """
         Connect to the URL returned by
@@ -373,7 +416,7 @@ class WebsocketStreamingClientSingleConnection:
         For a description of ABNF opcodes, see: https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
         """
 
-        # WebSocket should already be connected at this point, see: start_stream()
+        # WebSocket should already be connected at this point, see: _connect_and_start()
         if self._ws_client is None or not self._ws_client.connected:
             raise RuntimeError('WebSocket client is disconnected!')
 
@@ -501,7 +544,7 @@ class WebsocketStreamingClientSingleConnection:
         return {'Authorization': f'Bearer {self._ws_access_token}'}
 
 
-class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnection):
+class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
     """
     Extend the WebsocketStreamingClientSingleConnection class
     to reconnect to a server and continue after disconnection
@@ -515,13 +558,11 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
         # state for reconnection
         self._media_generator = None
-        self._media_config = None
-        self._response_types = None
 
-    def start_stream(self,
-                     media_generator,
-                     media_config: MediaConfig = None,
-                     response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
+    def _connect_and_start(self,
+                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
+                           media_config: typing.Union[MediaConfig, None] = None,
+                           response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         # store state for reconnection
         self._media_generator = media_generator
@@ -529,7 +570,7 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
         self._response_types = response_types
 
         # start stream now
-        response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
+        response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
 
         return self._reconnect_generator(response_generator)
 
@@ -554,12 +595,18 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
             except self.CONNECTION_EXCEPTION_CLASSES as connection_error:
                 self._log_exception(f'Error while generating responses', connection_error)
 
-                # wait for other threads, that still access the web-socket to fail and stop
+                # wait for other threads, that still access the WebSocket to fail and stop
                 self._wait_for_thread(timeout_step=0.1, global_timeout=1.0)
+
+                # if media stream already finished
+                if self._media_stream_finished:
+                    self._logger.warning('Media stream already finished! '
+                                         'Will not attempt to reconnect to WebSocket as server will not return any responses.')
+                    return
 
                 # try reconnecting and keep on yielding from the same generator
                 self._logger.debug('Trying to reconnect')
-                response_generator = super().start_stream(self._media_generator, self._media_config, self._response_types)
+                response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
 
             # catch all other exceptions and stop the generator
             except Exception as ex:
@@ -568,19 +615,24 @@ class WebSocketStreamingClientReconnecting(WebsocketStreamingClientSingleConnect
 
     def _wait_for_thread(self, timeout_step: float, global_timeout: float):
         """Join thread, with logging on success status, and a timeout."""
-        waiting_for = 0.0
+
+        # return immediately if media thread was never started
+        if self._media_sender_thread is None:
+            return
 
         # request media thread to logically stop
         self._stop_media_thread = True
 
+        # wait for media thread to finish (up to global_timeout seconds)
+        waiting_for = 0.0
         while self._media_sender_thread.is_alive() and waiting_for < global_timeout:
+
+            # wait for media thread to finish (up to timeout_step seconds)
             self._media_sender_thread.join(timeout=timeout_step)
+
+            # if media thread is still alive
             if self._media_sender_thread.is_alive():
                 waiting_for += timeout_step
                 self._logger.debug(f'{self._media_sender_thread.name} not closing, {waiting_for=} seconds...')
             else:
                 self._logger.debug(f'{self._media_sender_thread.name} closed, {waiting_for=} seconds...')
-
-
-# type alias for default exported Client class
-WebSocketStreamingClient = WebSocketStreamingClientReconnecting
