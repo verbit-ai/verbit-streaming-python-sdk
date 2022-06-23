@@ -389,6 +389,7 @@ class WebsocketStreamingClientSingleConnection:
             for chunk in media_generator:
 
                 # emit media chunk
+                self._logger.debug(f'Sending media chunk: {len(chunk)} bytes')
                 ws_client.send_binary(chunk)
 
                 # if stop requested

@@ -89,7 +89,7 @@ response_generator = client.start_stream(media_generator=media_generator,
                                          response_types=response_types)
 ```
 
-### Providing media via an external source
+### Providing media via an external source (available from v0.9.0)
 
 It is possible to use an external media source to provide media to the Speech Recognition Service.
 To do so, you need to specify the relevant input method when booking the session via Verbit's Ordering API.
