@@ -58,7 +58,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # assert arguments
         if not customer_token:
-            raise ValueError("Parameter 'api_key' is required")
+            raise ValueError("Parameter 'customer_token' is required")
 
         # media config
         self._media_config = None
@@ -145,7 +145,7 @@ class WebsocketStreamingClientSingleConnection:
         """
         Start streaming media and get back speech recognition responses from server.
 
-        :param ws_url: websocket url to use.
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
@@ -162,7 +162,7 @@ class WebsocketStreamingClientSingleConnection:
         is coming from an external source.
         The media source should be configured when booking the session, via Verbit's Ordering API (see README.md)
 
-        :param ws_url: websocket url to use.
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param response_types: a bitmask Flag denoting which response type(s) should be returned by the service
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
@@ -222,7 +222,7 @@ class WebsocketStreamingClientSingleConnection:
         Start a WebSocket session and get back speech recognition responses from the server.
         Media may be provided via the `media_generator` parameter or via an external source (see README.md)
 
-        :param ws_url: web socket url to use.
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
@@ -274,7 +274,7 @@ class WebsocketStreamingClientSingleConnection:
         Which is linked and documented in tenacity:
         https://tenacity.readthedocs.io/en/latest/api.html#wait-functions
 
-        :param ws_url: base ws url to use
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_config:    a MediaConfig dataclass which describes the media format sent by the client
         :param response_types: a bitmask Flag denoting which response type(s) should be returned by the server
         """
@@ -561,7 +561,7 @@ class WebsocketStreamingClientSingleConnection:
             raise
 
         if not auth_token:
-            err_msg = f"Failed to get valid auth token for api_key {self._customer_token}"
+            err_msg = f"Failed to get valid auth token for customer_token: {self._customer_token}"
             self._logger.error(err_msg)
             raise RuntimeError(err_msg)
 
