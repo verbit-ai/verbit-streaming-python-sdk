@@ -11,8 +11,9 @@ from verbit.streaming_client import WebSocketStreamingClient, MediaConfig, Respo
 # constants
 CHUNK_DURATION_SECONDS = 0.1
 
-# set access token
-streaming_access_token = '<your_access_token>'
+# set token and url
+example_customer_token = '<your_customer_token>'
+example_ws_url = '<websocket url>'  # includes session token in url.
 
 
 def media_generator_wavefile(filename, chunk_duration):
@@ -30,10 +31,10 @@ def media_generator_wavefile(filename, chunk_duration):
             sleep(chunk_duration)
 
 
-def example_streaming_client(access_token, media_generator):
+def example_streaming_client(ws_url, customer_token, media_generator):
 
     # init verbit streaming client
-    client = WebSocketStreamingClient(access_token=access_token)
+    client = WebSocketStreamingClient(customer_token)
 
     # set the properties of the media to be sent by the client
     media_config = MediaConfig(format='S16LE',        # signed 16-bit little-endian PCM
@@ -45,7 +46,7 @@ def example_streaming_client(access_token, media_generator):
     response_types = ResponseType.Transcript | ResponseType.Captions
 
     # upgrade connection to websocket and start audio stream
-    response_generator = client.start_stream(media_generator=media_generator, media_config=media_config, response_types=response_types)
+    response_generator = client.start_stream(ws_url, media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     # get transcription responses
     for response in response_generator:
@@ -66,4 +67,4 @@ if __name__ == '__main__':
     wav_media_generator = media_generator_wavefile(args.media_path, CHUNK_DURATION_SECONDS)
 
     # run example client
-    example_streaming_client(streaming_access_token, wav_media_generator)
+    example_streaming_client(example_ws_url, example_customer_token, wav_media_generator)

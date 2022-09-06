@@ -6,7 +6,7 @@ import websocket
 from unittest.mock import MagicMock, patch
 
 from examples import example_client
-from tests.common import RESPONSES
+from tests.common import RESPONSES, mock_get_auth_token
 
 # globals
 g_connection_fail_call_count = 0
@@ -52,12 +52,14 @@ class TestExampleClient(unittest.TestCase):
 
     def setUp(self):
 
-        self.access_token = "fake-token"
+        self.customer_token = "fake-token"
+        self.ws_url = "fake-ws-url"
         self.mock_media_gen = (b'\x01' for _ in range(2))
 
     @patch('verbit.streaming_client.WebSocketStreamingClient.start_stream', mock_start_stream)
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_example_client_mocked_streams(self):
-        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
+        example_client.example_streaming_client(self.ws_url, self.customer_token, self.mock_media_gen)
         # completion with no exception
 
     @patch('websocket.WebSocket.connect', mock_connect_ok_with_sideeffect)
@@ -65,8 +67,9 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.send', MagicMock)
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
     @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=WS_REPLIES_SIDE_EFFECT))
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_example_client_mocked_ws(self):
-        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
+        example_client.example_streaming_client(self.ws_url, self.customer_token, self.mock_media_gen)
         # completion with no exception
 
     @patch('websocket.WebSocket.connect', mock_connect_after_rejections)
@@ -74,8 +77,9 @@ class TestExampleClient(unittest.TestCase):
     @patch('websocket.WebSocket.send', MagicMock)
     @patch('websocket.WebSocket.close', mock_close_with_sideeffect)
     @patch('websocket.WebSocket.recv_data', MagicMock(side_effect=WS_REPLIES_SIDE_EFFECT))
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_example_ws_retry_and_connect(self):
-        example_client.example_streaming_client(self.access_token, self.mock_media_gen)
+        example_client.example_streaming_client(self.ws_url, self.customer_token, self.mock_media_gen)
         # completion with no exception
 
     # TODO: cover failures, reconnections, 502, 401 cases on connect
