@@ -76,7 +76,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # auth
         self._customer_token = customer_token
-        self._auth_endpoint = "https://users.verbit.co/api/v1/customer/api-token"
+        self._auth_endpoint = "https://users.verbit.co/api/v1/auth"
         self._ws_auth_headers = None
 
         # WebSocket
@@ -571,7 +571,9 @@ class WebsocketStreamingClientSingleConnection:
     def _get_auth_token(self):
 
         auth_payload = {
-            "api_key": self._customer_token,
+            "data": {
+                "api_key": self._customer_token
+            }
         }
 
         response = requests.post(self._auth_endpoint, data=auth_payload)
