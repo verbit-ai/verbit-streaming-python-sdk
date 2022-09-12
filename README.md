@@ -24,12 +24,12 @@ To install this package run:
 To access the Verbit's Streaming Speech Recognition services first an API key (customer token) should be created by following the documentation in the auth section of the [Ordering API docs](https://platform.verbit.co/api_docs).  
 
 ### Ordering API
-In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a webscoket url composed of the base streaming api url with a query string parameters that include the order's authentication token. The url together with the customer token in the headers will be used to initiate a WebSocket connection.
+In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a WebScoket URL, composed of the base streaming API URL and your order's token. The URL, together with the customer token, will be used to initiate a WebSocket connection.
 
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
-For further details regarding the ordering api, please refer to the documentation here: [Ordering API](https://platform.verbit.co/api_docs).
+For further details regarding the Ordering API, please refer to the documentation here: [Ordering API](https://platform.verbit.co/api_docs).
 
 ### Creating a WebSocketStreamingClient
 
@@ -51,7 +51,7 @@ The `WebSocketStreamingClient` will use your generator as input, iterating it an
 
 #### Example
 
-The following example reads audio from a WAV file and streams it to the Speech Recognition Service (Note: The example assumes that the customer token and websocket url have been obtained via their respective api calls):
+The following example reads audio from a WAV file and streams it to the Speech Recognition Service (Note: the example assumes that the customer token and WebSocket URL have been obtained via their respective API calls):
 
 ```python
 import wave
