@@ -576,7 +576,7 @@ class WebsocketStreamingClientSingleConnection:
             }
         }
 
-        response = requests.post(self._auth_endpoint, data=auth_payload)
+        response = requests.post(self._auth_endpoint, json=auth_payload)
         response.raise_for_status()
 
         auth_token = response.json().get('token')
