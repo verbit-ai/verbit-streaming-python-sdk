@@ -69,11 +69,6 @@ class WebsocketStreamingClientSingleConnection:
         self._model_id = None
         self._language_code = None
 
-        # server url
-        self._schema = 'wss'
-        self._base_url = "speech.verbit.co"
-        self._server_path = '/ws'
-
         # auth
         self._customer_token = customer_token
         self._auth_endpoint = "https://users.verbit.co/api/v1/auth"
