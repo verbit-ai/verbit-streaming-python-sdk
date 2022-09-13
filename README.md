@@ -21,7 +21,7 @@ To install this package run:
 ## Usage
 
 ### Verbit API key
-To access the Verbit's Streaming Speech Recognition services first an API key (customer token) should be created by following the documentation in the auth section of the [Ordering API docs](https://platform.verbit.co/api_docs).  
+To access Verbit's Streaming Speech Recognition services an API key (customer token) should be obtained by sending an email request to the following address: api@verbit.ai  
 
 ### Ordering API
 In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a WebScoket URL, composed of the base streaming API URL and your order's token. The URL, together with the customer token, will be used to initiate a WebSocket connection.
