@@ -13,7 +13,7 @@ CHUNK_DURATION_SECONDS = 0.1
 
 # set token and url
 example_customer_token = '<your_customer_token>'
-example_ws_url = '<websocket_url>'  # includes session token in url.
+example_ws_url = '<websocket_url>'  # should include 'token' query parameter.
 
 
 def media_generator_wavefile(filename, chunk_duration):
