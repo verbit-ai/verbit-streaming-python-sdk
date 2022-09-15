@@ -5,13 +5,15 @@ import socket
 import struct
 import typing
 import logging
+import requests
+
 from enum import IntFlag
 from threading import Thread
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
 import tenacity
-from tenacity import retry, wait_random_exponential, stop_after_delay
+from tenacity import retry, wait_random, wait_random_exponential, stop_after_delay, stop_after_attempt
 from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
@@ -52,11 +54,11 @@ class WebsocketStreamingClientSingleConnection:
     RETRY_HTTP_CLIENT_CODES = (429,)
     NO_RETRY_HTTP_SERVER_CODES = (501, 505, 506, 507, 508, 510)
 
-    def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
+    def __init__(self, customer_token, on_media_error: typing.Callable[[Exception], None] = None):
 
         # assert arguments
-        if not access_token:
-            raise ValueError("Parameter 'access_token' is required")
+        if not customer_token:
+            raise ValueError("Parameter 'customer_token' is required")
 
         # media config
         self._media_config = None
@@ -67,14 +69,13 @@ class WebsocketStreamingClientSingleConnection:
         self._model_id = None
         self._language_code = None
 
-        # server url
-        self._schema = 'wss'
-        self._base_url = "speech.verbit.co"
-        self._server_path = '/ws'
+        # auth
+        self._customer_token = customer_token
+        self._auth_endpoint = "https://users.verbit.co/api/v1/auth"
+        self._ws_auth_headers = None
 
         # WebSocket
         self._ws_client = None
-        self._ws_access_token = access_token
         self._socket_timeout = None
 
         # logger
@@ -96,10 +97,6 @@ class WebsocketStreamingClientSingleConnection:
     # ========== #
     # Properties #
     # ========== #
-    @property
-    def ws_url(self) -> str:
-        return f'{self._schema}://{self._base_url}{self._server_path}'
-
     @property
     def media_stream_finished(self):
         return self._media_stream_finished
@@ -136,32 +133,36 @@ class WebsocketStreamingClientSingleConnection:
     # Interface #
     # ========= #
     def start_stream(self,
+                     ws_url: str,
                      media_generator: typing.Iterator[bytes],
                      media_config: MediaConfig = None,
                      response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
         Start streaming media and get back speech recognition responses from server.
 
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-        return self._connect_and_start(media_generator=media_generator, media_config=media_config, response_types=response_types)
+        return self._connect_and_start(ws_url, media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     def start_with_external_source(self,
+                                   ws_url: str,
                                    response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
         Start a WebSocket session and get back speech recognition responses from the server, provided that the media
         is coming from an external source.
         The media source should be configured when booking the session, via Verbit's Ordering API (see README.md)
 
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param response_types: a bitmask Flag denoting which response type(s) should be returned by the service
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-        return self._connect_and_start(response_types=response_types)
+        return self._connect_and_start(ws_url, response_types=response_types)
 
     def send_event(self, event: str, payload: dict = None):
         if self._ws_client is None or not self._ws_client.connected:
@@ -207,6 +208,7 @@ class WebsocketStreamingClientSingleConnection:
     # Internal #
     # ======== #
     def _connect_and_start(self,
+                           ws_url: str,
                            media_generator: typing.Union[typing.Iterator[bytes], None] = None,
                            media_config: typing.Union[MediaConfig, None] = None,
                            response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
@@ -215,6 +217,7 @@ class WebsocketStreamingClientSingleConnection:
         Start a WebSocket session and get back speech recognition responses from the server.
         Media may be provided via the `media_generator` parameter or via an external source (see README.md)
 
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
         :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
@@ -230,9 +233,12 @@ class WebsocketStreamingClientSingleConnection:
         if self._media_stream_finished:
             raise RuntimeError('Media stream already finished! Will not connect to WebSocket as server will not return any responses.')
 
+        # get websocket headers
+        self._ws_auth_headers = self._get_ws_connect_headers()
+
         # connect to WebSocket
-        self._logger.info(f'Connecting to WebSocket at {self.ws_url}')
-        self._connect_websocket(media_config=media_config, response_types=response_types)
+        self._logger.info(f'Connecting to WebSocket at {ws_url}')
+        self._connect_websocket(ws_url, media_config=media_config, response_types=response_types)
         self._logger.info('WebSocket connected!')
 
         # start media sender thread
@@ -247,7 +253,7 @@ class WebsocketStreamingClientSingleConnection:
         # return response generator
         return self._response_generator()
 
-    def _connect_websocket(self, media_config: MediaConfig, response_types: ResponseType):
+    def _connect_websocket(self, ws_url: str, media_config: MediaConfig, response_types: ResponseType):
         """
         Connect to the URL returned by
             self.ws_url
@@ -263,12 +269,13 @@ class WebsocketStreamingClientSingleConnection:
         Which is linked and documented in tenacity:
         https://tenacity.readthedocs.io/en/latest/api.html#wait-functions
 
+        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_config:    a MediaConfig dataclass which describes the media format sent by the client
         :param response_types: a bitmask Flag denoting which response type(s) should be returned by the server
         """
 
         # build WebSocket url
-        ws_url = self.ws_url + self._get_ws_connect_query_string(media_config=media_config, response_types=response_types)
+        ws_url += self._get_ws_connect_query_string(media_config=media_config, response_types=response_types)
 
         # create WebSocket instance
         self._ws_client = WebSocket(enable_multithread=True)
@@ -332,7 +339,7 @@ class WebsocketStreamingClientSingleConnection:
                stop=stop_after_delay(self.max_connection_retry_seconds),
                retry=retry_predicate)
         def connect_and_retry():
-            self._ws_client.connect(ws_url, header=self._get_ws_connect_headers())
+            self._ws_client.connect(ws_url, header=self._ws_auth_headers)
 
         # try opening WebSocket connection
         try:
@@ -531,7 +538,7 @@ class WebsocketStreamingClientSingleConnection:
 
     @staticmethod
     def _get_ws_connect_query_string(media_config: MediaConfig, response_types: ResponseType) -> str:
-        return '?' + urlencode({
+        return '&' + urlencode({
             'format': media_config.format,
             'sample_rate': media_config.sample_rate,
             'sample_width': media_config.sample_width,
@@ -541,7 +548,35 @@ class WebsocketStreamingClientSingleConnection:
         })
 
     def _get_ws_auth_info(self) -> dict:
-        return {'Authorization': f'Bearer {self._ws_access_token}'}
+
+        try:
+            auth_token = self._get_auth_token()
+        except Exception:
+            self._logger.exception(f"Failed to get auth token.")
+            raise
+
+        if not auth_token:
+            err_msg = f"Failed to get valid auth token for customer_token: {self._customer_token}"
+            self._logger.error(err_msg)
+            raise RuntimeError(err_msg)
+
+        return {'Authorization': f'Bearer {auth_token}'}
+
+    @retry(reraise=True, stop=stop_after_attempt(5), wait=wait_random(min=0.5, max=1.5))
+    def _get_auth_token(self):
+
+        auth_payload = {
+            "data": {
+                "api_key": self._customer_token
+            }
+        }
+
+        response = requests.post(self._auth_endpoint, json=auth_payload)
+        response.raise_for_status()
+
+        auth_token = response.json().get('token')
+
+        return auth_token
 
 
 class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
@@ -551,15 +586,16 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
     (for whatever reason).
     """
 
-    def __init__(self, access_token, on_media_error: typing.Callable[[Exception], None] = None):
+    def __init__(self, customer_token, on_media_error: typing.Callable[[Exception], None] = None):
 
         # base class init logic
-        super().__init__(access_token, on_media_error)
+        super().__init__(customer_token, on_media_error)
 
         # state for reconnection
         self._media_generator = None
 
     def _connect_and_start(self,
+                           ws_url: str,
                            media_generator: typing.Union[typing.Iterator[bytes], None] = None,
                            media_config: typing.Union[MediaConfig, None] = None,
                            response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
@@ -570,11 +606,11 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
         self._response_types = response_types
 
         # start stream now
-        response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
+        response_generator = super()._connect_and_start(ws_url, self._media_generator, self._media_config, self._response_types)
 
-        return self._reconnect_generator(response_generator)
+        return self._reconnect_generator(ws_url, response_generator)
 
-    def _reconnect_generator(self, response_generator) -> typing.Iterator[typing.Dict]:
+    def _reconnect_generator(self, ws_url, response_generator) -> typing.Iterator[typing.Dict]:
         """
         Returns a generator wrapping `response_generator` which will attempt
         to reconnect in case of disconnection and keep on yielding results.
@@ -606,7 +642,7 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
 
                 # try reconnecting and keep on yielding from the same generator
                 self._logger.debug('Trying to reconnect')
-                response_generator = super()._connect_and_start(self._media_generator, self._media_config, self._response_types)
+                response_generator = super()._connect_and_start(ws_url, self._media_generator, self._media_config, self._response_types)
 
             # catch all other exceptions and stop the generator
             except Exception as ex:

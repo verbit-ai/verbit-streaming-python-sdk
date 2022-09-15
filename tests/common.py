@@ -14,3 +14,7 @@ def _load_json_resource(name):
 # init mock responses
 RESOURCE_KEYS = ['happy_json_resp0', 'happy_json_resp1', 'happy_json_resp_EOS']
 RESPONSES = {k: _load_json_resource(k) for k in RESOURCE_KEYS}
+
+
+def mock_get_auth_token(_self, *_args, **_kwargs):
+    return "fake-auth-token"

@@ -20,22 +20,25 @@ To install this package run:
 
 ## Usage
 
+### Verbit API key
+To access Verbit's Streaming Speech Recognition services an API key (customer token) should be obtained by sending an email request to the following address: api@verbit.ai  
+
 ### Ordering API
-In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued an authentication token which can be used to initiate a WebSocket connection.
+In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a WebScoket URL, composed of the base streaming API URL and your order's token. The URL, together with the customer token, will be used to initiate a WebSocket connection.
 
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
-Please refer to our documentation here: [Ordering API](https://platform.verbit.co/api_docs).
+For further details regarding the Ordering API, please refer to the documentation here: [Ordering API](https://platform.verbit.co/api_docs).
 
 ### Creating a WebSocketStreamingClient
 
-Create the client, and pass in the `Access Token` acquired from the Ordering API:
+Create the client, and pass in the `Customer Token` as detailed above:
 
 ```python
 from verbit.streaming_client import WebSocketStreamingClient
 
-client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
+client = WebSocketStreamingClient(customer_token="CUSTOMER TOKEN")
 ```
 
 ### Streaming media via WebSocket
@@ -48,7 +51,7 @@ The `WebSocketStreamingClient` will use your generator as input, iterating it an
 
 #### Example
 
-The following example reads audio from a WAV file and streams it to the Speech Recognition Service:
+The following example reads audio from a WAV file and streams it to the Speech Recognition Service (Note: the example assumes that the customer token and WebSocket URL have been obtained via their respective API calls):
 
 ```python
 import wave
@@ -82,11 +85,13 @@ media_config = MediaConfig(format='S16LE',      # signed 16-bit little-endian PC
 
 response_types = ResponseType.Transcript | ResponseType.Captions
     
-client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
+client = WebSocketStreamingClient(customer_token="CUSTOMER TOKEN")
 
-response_generator = client.start_stream(media_generator=media_generator,
-                                         media_config=media_config,
-                                         response_types=response_types)
+response_generator = client.start_stream(
+   ws_url="WEBSOCKET URL",
+   media_generator=media_generator,
+   media_config=media_config,
+   response_types=response_types)
 ```
 
 ### Providing media via an external source
@@ -108,9 +113,9 @@ from verbit.streaming_client import WebSocketStreamingClient, ResponseType
 
 response_types = ResponseType.Transcript | ResponseType.Captions
     
-client = WebSocketStreamingClient(access_token="ACCESS TOKEN")
+client = WebSocketStreamingClient(customer_token="CUSTOMER TOKEN")
 
-response_generator = client.start_with_external_source(response_types=response_types)
+response_generator = client.start_with_external_source(ws_url="WEBSOCKET URL", response_types=response_types)
 ```
 
 
@@ -132,7 +137,7 @@ When the media generator is exhausted, the client sends an End-of-Stream (non-bi
 
 In a scenario where the media is coming from an external source, it is the user's responsibility to send the End-of-Stream message to the service.
 
-The End-of-Stream message can be sent using the `send_eos_event()` method, and it has the following structure:
+The End-of-Stream message can be sent using the `send_eos_event()` method which internally sends the following payload:
 ```
 {
    "event": "EOS"

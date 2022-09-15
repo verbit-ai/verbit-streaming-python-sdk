@@ -11,7 +11,7 @@ from tenacity import RetryError
 import verbit.streaming_client
 from verbit.streaming_client import WebsocketStreamingClientSingleConnection, WebSocketStreamingClient
 
-from tests.common import RESPONSES
+from tests.common import RESPONSES, mock_get_auth_token
 
 
 class TestClientSDK(unittest.TestCase):
@@ -27,9 +27,10 @@ class TestClientSDK(unittest.TestCase):
     def setUp(self):
 
         # fake
-        self.access_token = "ABCD"
+        self.ws_url = "fake-ws-url"
+        self.customer_token = "ABCD"
 
-        self.client = WebSocketStreamingClient(access_token=self.access_token)
+        self.client = WebSocketStreamingClient(customer_token=self.customer_token)
 
         self._media_status = {'started': False, 'finished': False}
 
@@ -37,6 +38,7 @@ class TestClientSDK(unittest.TestCase):
         self.valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500, media_status=self._media_status, delay_sec=0.0)
         self.infinite_valid_media_generator = self._fake_media_generator(num_samples=1600, num_chunks=500000000, media_status=self._media_status, delay_sec=0.1)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_happy_flow_with_media(self):
         """
         Happy flow:
@@ -53,7 +55,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start streaming mocked media (and mock connection)
-        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
+        response_generator = self.client.start_stream(self.ws_url, media_generator=self.valid_media_generator)
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
 
@@ -81,6 +83,7 @@ class TestClientSDK(unittest.TestCase):
         # check that ws is no longer connected
         self.assertFalse(self.client._ws_client.connected)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_happy_flow_external_source(self):
         """
         Happy flow:
@@ -97,7 +100,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start client with no media generator (and mock connection)
-        response_generator = self.client.start_with_external_source()
+        response_generator = self.client.start_with_external_source(self.ws_url)
         self.client._ws_client.connect.assert_called_once()
         self.assertTrue(self.client._ws_client.connected)
 
@@ -124,9 +127,10 @@ class TestClientSDK(unittest.TestCase):
         # check that ws is no longer connected
         self.assertFalse(self.client._ws_client.connected)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_ws_connect_refuses_does_retry(self):
         """Client should raise an exception after re-tries timeout."""
-        client = WebSocketStreamingClient(access_token=self.access_token)
+        client = WebSocketStreamingClient(customer_token=self.customer_token)
 
         short_timeout_for_testing = 0.01
         client.max_connection_retry_seconds = short_timeout_for_testing
@@ -137,7 +141,7 @@ class TestClientSDK(unittest.TestCase):
         # raises 'RetryError'
         with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail):
             with self.assertRaises(RetryError) as cm_raises:
-                _ = client.start_stream(media_generator=self.valid_media_generator)
+                _ = client.start_stream(self.ws_url, media_generator=self.valid_media_generator)
 
         retry_err = cm_raises.exception
         last_exception = retry_err.last_attempt.exception()
@@ -149,8 +153,9 @@ class TestClientSDK(unittest.TestCase):
         # at least one retry has been attempted
         self.assertGreater(retry_err.last_attempt.attempt_number, 1)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_ws_connect_client_error_does_not_retry_401(self):
-        client = WebSocketStreamingClient(access_token=self.access_token)
+        client = WebSocketStreamingClient(customer_token=self.customer_token)
 
         short_timeout_for_testing = 0.01
         client.max_connection_retry_seconds = short_timeout_for_testing
@@ -161,10 +166,11 @@ class TestClientSDK(unittest.TestCase):
         # does not raise 'RetryError', but directly the raised error
         with patch('verbit.streaming_client.WebSocket.connect', mock_connect_fail_auth_401):
             with self.assertRaises(websocket.WebSocketBadStatusException):
-                _ = client.start_stream(media_generator=self.valid_media_generator)
+                _ = client.start_stream(self.ws_url, media_generator=self.valid_media_generator)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_ws_connect_client_server_busy_error_does_retry_502(self):
-        client = WebSocketStreamingClient(access_token=self.access_token)
+        client = WebSocketStreamingClient(customer_token=self.customer_token)
 
         short_timeout_for_testing = 0.01
         client.max_connection_retry_seconds = short_timeout_for_testing
@@ -175,7 +181,7 @@ class TestClientSDK(unittest.TestCase):
         # does raise 'RetryError'
         with patch('websocket.WebSocket.connect', mock_connect_fail_bad_gateway_502):
             with self.assertRaises(RetryError) as cm_raises:
-                _ = client.start_stream(media_generator=self.valid_media_generator)
+                _ = client.start_stream(self.ws_url, media_generator=self.valid_media_generator)
 
         retry_err = cm_raises.exception
         last_exception = retry_err.last_attempt.exception()
@@ -190,13 +196,14 @@ class TestClientSDK(unittest.TestCase):
     def test_missing_required_init_params(self):
 
         with self.assertRaises(ValueError):
-            WebSocketStreamingClient(access_token=None)
+            WebSocketStreamingClient(customer_token=None)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_media_thread_exceptions(self):
         """Example of testing media errors on the media thread."""
 
         # init client
-        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(customer_token=self.customer_token, on_media_error=MagicMock())
 
         ex = RuntimeError('Testing error propagation')
 
@@ -211,7 +218,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class()
 
         # start evil stream
-        client.start_stream(media_generator=evil_media_gen())
+        client.start_stream(self.ws_url, media_generator=evil_media_gen())
 
         # wait for media-thread to actually run
         self._wait_for_media_key(media_status=media_status, key='started')
@@ -219,11 +226,12 @@ class TestClientSDK(unittest.TestCase):
         # assert we get the expected exception
         client._on_media_error.assert_called_with(ex)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_bad_media_generator(self):
         """Example of testing media errors on the media thread: media generator will yield an 'int' instead of 'bytes'."""
 
         # init client
-        client = WebSocketStreamingClient(access_token=self.access_token, on_media_error=MagicMock())
+        client = WebSocketStreamingClient(customer_token=self.customer_token, on_media_error=MagicMock())
         self._patch_ws_class()
 
         media_status = {'started': False, 'finished': False}
@@ -241,7 +249,7 @@ class TestClientSDK(unittest.TestCase):
             media_status['finished'] = True
 
         # start evil stream
-        client.start_stream(media_generator=bad_media_gen())
+        client.start_stream(self.ws_url, media_generator=bad_media_gen())
 
         # wait for media-thread to actually run
         self._wait_for_media_key(media_status=media_status, key='started')
@@ -254,6 +262,7 @@ class TestClientSDK(unittest.TestCase):
     # ========================================= #
     # Test different early 'close()' scenarios: #
     # ========================================= #
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_close_response(self):
         """CLOSE OPCODE Arrived before a response with EOS, that is, stream stopped in the middle."""
 
@@ -265,6 +274,7 @@ class TestClientSDK(unittest.TestCase):
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_close_unexpected_code(self):
         """CLOSE OPCODE in middle, with unexpected code"""
 
@@ -282,6 +292,7 @@ class TestClientSDK(unittest.TestCase):
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_close_invalid_utf8(self):
         """CLOSE OPCODE in middle with invalid utf8"""
 
@@ -299,6 +310,7 @@ class TestClientSDK(unittest.TestCase):
         # 'send' is only used for EOS by media ending, not expected here since media should still be streaming
         self.client._ws_client.send.assert_not_called()
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_data_ended_without_EOS(self):
 
         # mock websocket receive data func
@@ -307,7 +319,7 @@ class TestClientSDK(unittest.TestCase):
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effect))
         # start stream and expect StopIteration on third `next` call on generator, when generator is finished.
-        response_generator = self.client.start_stream(media_generator=self.valid_media_generator)
+        response_generator = self.client.start_stream(self.ws_url, media_generator=self.valid_media_generator)
         next(response_generator)
         next(response_generator)
         with self.assertRaises(Exception):
@@ -316,17 +328,20 @@ class TestClientSDK(unittest.TestCase):
         # assert client closed after server closed
         self.client._ws_client.close.assert_called_once()
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_disconnect_while_streaming_reconnects(self):
         """When server disconnects client reconnects and streams from where it left off."""
 
         self._run_mocked_disconnecting_server(WebSocketStreamingClient, media_generator=self.infinite_valid_media_generator)
 
+    @patch('verbit.streaming_client.WebsocketStreamingClientSingleConnection._get_auth_token', mock_get_auth_token)
     def test_disconnect_while_streaming_single_connection_raises(self):
         """The single-connection-client, does not reconnect by itself, but raises."""
 
         with self.assertRaises(ConnectionError):
             self._run_mocked_disconnecting_server(WebsocketStreamingClientSingleConnection, media_generator=self.valid_media_generator)
 
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
     def test_disconnect_while_streaming_no_retries_after_media_has_stopped(self):
         """Will not attempt reconnection after stream is finished."""
 
@@ -353,7 +368,7 @@ class TestClientSDK(unittest.TestCase):
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
         # start streaming mocked media (and mock connection)
-        response_generator = self.client.start_stream(media_generator=self.infinite_valid_media_generator)
+        response_generator = self.client.start_stream(self.ws_url, media_generator=self.infinite_valid_media_generator)
 
         i = None
         for i, response in enumerate(response_generator):
@@ -366,7 +381,7 @@ class TestClientSDK(unittest.TestCase):
         """Run a scenario, creating a client instance and letting connect to a mocked server which disconnects and possibly resumes several times."""
 
         # init client
-        self.client = ws_client_cls(access_token=self.access_token)
+        self.client = ws_client_cls(customer_token=self.customer_token)
 
         # mock logger methods in order to check them
         self.client._logger.warning = MagicMock()
@@ -391,7 +406,7 @@ class TestClientSDK(unittest.TestCase):
         response_count = len(side_effects) - exception_count
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
-        response_generator = self.client.start_stream(media_generator=media_generator)
+        response_generator = self.client.start_stream(self.ws_url, media_generator=media_generator)
 
         # consume all results except for the EOS:
         for i in range(response_count - 1):
