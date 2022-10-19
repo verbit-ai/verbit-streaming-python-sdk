@@ -48,7 +48,7 @@ Responses returned by Verbit's Streaming Speech Recognition services have the fo
   - `"start"` - The start time of the utterance. Measured in seconds from the beginning of the media stream.
   - `"end"` - The (current) end time of the utterance. Measured in seconds from the beginning of the media stream.
   - `"start_pts"` - The pts value corresponding to the `"start"` of the response, as received from the input media stream. Measured in seconds.
-    - Note: if the input media stream doesn't provide pts values, this field will default to `0`.
+    - Note: if the input media stream doesn't provide pts values, this field will have the same value as `"start"`.
   - `"start_epoch"` - The epoch timestamp at which the media corresponding to the `"start"` of the response was received.
   - `"is_final"` - A boolean denoting whether the response is the final one for the utterance (See explanation in [README.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/README.md#responses)). For a "captions" response, this is always set to `"true"`, since captions are not incrementally updated (thus, each "captions" response is final).
   - `"is_end_of_stream"` - A boolean denoting whether the response is the last one for the entire media stream
