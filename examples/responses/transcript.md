@@ -17,6 +17,10 @@ Note that:
         "type": "transcript",
         "is_final": false,
         "is_end_of_stream": false,
+        "start": 0.0,
+        "end": 1.0,
+        "start_pts": 4000.0,
+        "start_epoch": 1666011448.5125701,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -28,6 +32,8 @@ Note that:
                 "transcript": "Welcome",
                 "start": 0.0,
                 "end": 1.0,
+                "start_pts": 4000.0,
+                "start_epoch": 1666011448.5125701,
                 "items": [
                     {
                         "start": 0.2,
@@ -51,6 +57,10 @@ Note that:
         "type": "transcript",
         "is_final": false,
         "is_end_of_stream": false,
+        "start": 0.0,
+        "end": 3.1,
+        "start_pts": 4000.0,
+        "start_epoch": 1666011448.5125701,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -62,6 +72,8 @@ Note that:
                 "transcript": "Welcome friends, Arco vis from",
                 "start": 0.0,
                 "end": 3.1,
+                "start_pts": 4000.0,
+                "start_epoch": 1666011448.5125701,
                 "items": [
                     {
                         "start": 0.2,
@@ -123,6 +135,10 @@ Note that:
         "type": "transcript",
         "is_final": true,
         "is_end_of_stream": false,
+        "start": 0.0,
+        "end": 8.0,
+        "start_pts": 4000.0,
+        "start_epoch": 1666011448.5125701,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -134,6 +150,8 @@ Note that:
                 "transcript": "Welcome friends, archivists from all around. Today's show in case you wanted to come over,",
                 "start": 0.0,
                 "end": 8.0,
+                "start_pts": 4000.0,
+                "start_epoch": 1666011448.5125701,
                 "items": [
                     {
                         "start": 0.2,

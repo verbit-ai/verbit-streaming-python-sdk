@@ -438,7 +438,7 @@ class WebsocketStreamingClientSingleConnection:
             while not should_stop:
 
                 # read data from WebSocket
-                opcode, data = self._ws_client.recv_data()
+                opcode, data = self._ws_client.recv_data(control_frame=True)
 
                 # message is text
                 if opcode == ABNF.OPCODE_TEXT:
@@ -458,6 +458,7 @@ class WebsocketStreamingClientSingleConnection:
                     # explicitly close on final response:
                     # since the 'finally' block will only run at GC time of the generator:
                     if self._eos_response_types == self._response_types:
+                        self._logger.info(f'Received all expected EOS responses.')
                         self._close_ws()
                         should_stop = True
 
@@ -472,6 +473,20 @@ class WebsocketStreamingClientSingleConnection:
 
                     # update closing flag
                     should_stop = True
+
+                # handle ping/pong messages
+                # Note: the server sends PING messages and expects the client
+                # to respond with PONG with the same payload.
+                # This implementation, which is based on the "websocket-client" library,
+                # automatically responds to each PING with a PONG,
+                # but it's the client's responsibility to make sure each PING is responded.
+                # If PONG responses are not sent to server, and no messages are exchanged,
+                # the connection will automatically time out after the time period specified by self.socket_timeout.
+                elif opcode == ABNF.OPCODE_PING:
+                    self._logger.debug(f'Received Ping with payload: {data}')
+
+                elif opcode == ABNF.OPCODE_PONG:
+                    self._logger.debug(f'Received Pong with payload: {data}')
 
                 else:
 
@@ -507,8 +522,8 @@ class WebsocketStreamingClientSingleConnection:
         self._stop_media_thread = True
 
         if self._ws_client.connected:
-            self._logger.debug(f'Closing WebSocket')
-            self._ws_client.close(STATUS_GOING_AWAY)
+            self._logger.info(f'Closing WebSocket')
+            self._ws_client.close(STATUS_NORMAL)
 
     def _handle_socket_close(self, data):
         """
@@ -528,7 +543,7 @@ class WebsocketStreamingClientSingleConnection:
             if code not in (STATUS_NORMAL, STATUS_GOING_AWAY):
                 self._logger.warning('Unexpected close code: ' + msg)
             else:
-                self._logger.debug(msg)
+                self._logger.info(msg)
 
         except Exception as ex:
             self._log_exception(f'WebSocket closed with invalid payload. Data={data}', ex)

@@ -7,7 +7,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/verbit-ai/verbit-streaming-python-sdk',
 
-    version='0.10.0',
+    version='0.10.1',
 
     packages=['verbit'],
     package_dir={'verbit': 'verbit'},

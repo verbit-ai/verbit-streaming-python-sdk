@@ -466,7 +466,7 @@ class TestClientSDK(unittest.TestCase):
             # if we've reached here, return default Mock() behavior.
             return unittest.mock.DEFAULT
 
-        def mock_recv_data(_self):
+        def mock_recv_data(_self, control_frame=False):
             if not _self.connected:
                 raise ConnectionError('Mocked WS disconnected called recv_data().')
 

@@ -12,6 +12,10 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         "type": "captions",
         "is_final": true,
         "is_end_of_stream": false,
+        "start": 0.2,
+        "end": 1.25,
+        "start_pts": 4000.2,
+        "start_epoch": 1666011448.7125702,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -23,6 +27,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                 "transcript": "Welcome friends,",
                 "start": 0.2,
                 "end": 1.25,
+                "start_pts": 4000.2,
+                "start_epoch": 1666011448.7125702,
                 "items": [
                     {
                         "start": 0.2,
@@ -60,6 +66,10 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         "type": "captions",
         "is_final": true,
         "is_end_of_stream": false,
+        "start": 2.03,
+        "end": 5.03,
+        "start_pts": 4002.03,
+        "start_epoch": 1666011450.54257,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -71,6 +81,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                 "transcript": "archivists from all around. Today's show",
                 "start": 2.03,
                 "end": 5.03,
+                "start_pts": 4002.03,
+                "start_epoch": 1666011450.54257,
                 "items": [
                     {
                         "start": 2.03,
@@ -136,6 +148,10 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
         "type": "captions",
         "is_final": true,
         "is_end_of_stream": false,
+        "start": 5.03,
+        "end": 7.67,
+        "start_pts": 4005.03,
+        "start_epoch": 1666011453.54257,
         "speakers": [
             {
                 "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
@@ -147,6 +163,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                 "transcript": "in case you wanted to come over,",
                 "start": 5.03,
                 "end": 7.67,
+                "start_pts": 4005.03,
+                "start_epoch": 1666011453.54257,
                 "items": [
                     {
                         "start": 5.03,
