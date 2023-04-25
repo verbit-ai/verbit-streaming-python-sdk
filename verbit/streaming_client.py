@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import json
+import time
+import random
+import string
 import socket
 import struct
 import typing
@@ -39,6 +42,8 @@ class WebsocketStreamingClientSingleConnection:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
+    AUTO_PING_INTERVAL_SECONDS = 10                     # set to -1 to disable auto ping
+    AUTO_PING_PAYLOAD_SIZE = 4
 
     # events
     EVENT_EOS = 'EOS'
@@ -250,6 +255,13 @@ class WebsocketStreamingClientSingleConnection:
             self._stop_media_thread = False
             self._media_sender_thread.start()
 
+        # start ping sender thread
+        if self.AUTO_PING_INTERVAL_SECONDS > 0:
+            self._ping_sender_thread = Thread(
+                target=self._ping_sender_worker,
+                name='ws_ping_sender')
+            self._ping_sender_thread.start()
+
         # return response generator
         return self._response_generator()
 
@@ -383,6 +395,19 @@ class WebsocketStreamingClientSingleConnection:
 
         # send to server
         self._ws_client.send(msg_json)
+
+    def _ping_sender_worker(self):
+
+        def _rand_payload():
+            chars = string.ascii_lowercase + string.digits
+            return ''.join(random.choices(chars, k=self.AUTO_PING_PAYLOAD_SIZE))
+
+        while self._ws_client.connected:
+            try:
+                self._ws_client.ping(_rand_payload())
+                time.sleep(self.AUTO_PING_INTERVAL_SECONDS)
+            except Exception:
+                self._logger.warning('Error while sending ping')
 
     def _media_sender_worker(self, media_generator: typing.Iterator[bytes]):
         """Thread function for emitting media from a user-given generator."""
