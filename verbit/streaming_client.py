@@ -398,16 +398,16 @@ class WebsocketStreamingClientSingleConnection:
 
     def _ping_sender_worker(self):
 
-        def _rand_payload():
+        def _random_payload():
             chars = string.ascii_lowercase + string.digits
             return ''.join(random.choices(chars, k=self.AUTO_PING_PAYLOAD_SIZE))
 
         while self._ws_client.connected:
             try:
-                self._ws_client.ping(_rand_payload())
+                self._ws_client.ping(_random_payload())
                 time.sleep(self.AUTO_PING_INTERVAL_SECONDS)
-            except Exception:
-                self._logger.warning('Error while sending ping')
+            except Exception as ex:
+                self._logger.warning(f'Error sending ping: {ex}')
 
     def _media_sender_worker(self, media_generator: typing.Iterator[bytes]):
         """Thread function for emitting media from a user-given generator."""
