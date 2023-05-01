@@ -162,7 +162,10 @@ The `is_final` field is always `True` because no updates will be output for the 
 
     Example "captions" responses can be found in [examples/responses/captions.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/examples/responses/captions.md).
 
-# TODO : explain difference between transcript and captions in terms of silence handling!
+#### Responses on silent audio segments
+It should be noted that "transcript" and "captions" responses behave differently when the audio being transcribed is silent:
+* "transcript" responses are sent regardless of the audio content, in such a way that the entire audio duration is covered by "transcript" responses. In case of a silent audio segment, "transcript" responses will be sent with an empty word list.
+* "captions" responses are sent only when the speech recognition output contains words, which can be segmented into a caption. In case of a silent audio segment, no "captions" responses will be sent, since a caption doesn't make sense without any words. As a result of the nature of this response type, "captions" responses will not necessarily cover the entire audio duration (i.e. there may be "gaps" between "captions" responses). 
 
 ### Error handling and recovery
 
@@ -176,8 +179,16 @@ This client SDK contains two implementations, which have the same interface, but
 1. `WebSocketStreamingClientSingleConnection` - the base implementation; does not attempt to reconnect in case the connection was dropped prematurely. It can be useful, for example, if you would like to implement your own connection error handling logic.
 2. `WebSocketStreamingClient` - the default implementation; will attempt to reconnect in case the connection was closed prematurely, as many times as needed, until the final response is received (or some non-retryable error occurrs).
 
-#### Idle streams
-... # TODO : add
+### Idle streams
+In case the media stream comes from an external source, there may be times when no messages are sent over the WebSocket. 
+For example:
+* The external media source hasn't started yet
+* The media stream is silent and only "captions" responses were requested (see section on [silent audio segments](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/README.md#responses-on-silent-audio-segments)). 
+
+In case no message is sent over the WebSocket for more than 10 minutes, the connection will be dropped, and will need to be re-established. To prevent these undesired disconnections, it is advised to send a "ping" message at least once every 10 minutes. This client SDK sends a "ping" message every 1 minute, as long as the Websocket is connected. 
+
+If you choose to implement your own client, make sure to handle the "pong" messages you will get from the service, in response to your "ping" messages. 
+
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.
