@@ -42,7 +42,7 @@ class WebsocketStreamingClientSingleConnection:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
-    AUTO_PING_INTERVAL_SECONDS = 60                     # set to -1 to disable auto ping
+    AUTO_PING_INTERVAL_SECONDS = 10                     # set to -1 to disable auto ping
     AUTO_PING_PAYLOAD_SIZE = 4
 
     # events
@@ -671,6 +671,9 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
             # catch connection errors and attempt reconnection
             except self.CONNECTION_EXCEPTION_CLASSES as connection_error:
                 self._log_exception(f'Error while generating responses', connection_error)
+
+                if self._ping_sender_thread and self._ping_sender_thread.is_alive():
+                    self._ping_sender_thread.join(0.1)
 
                 # wait for other threads, that still access the WebSocket to fail and stop
                 self._wait_for_thread(timeout_step=0.1, global_timeout=1.0)
