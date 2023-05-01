@@ -42,7 +42,7 @@ class WebsocketStreamingClientSingleConnection:
 
     # constants
     DEFAULT_CONNECT_TIMEOUT_SECONDS = 120.0
-    AUTO_PING_INTERVAL_SECONDS = 10                     # set to -1 to disable auto ping
+    AUTO_PING_INTERVAL_SECONDS = 60                     # set to -1 to disable auto ping
     AUTO_PING_PAYLOAD_SIZE = 4
 
     # events
@@ -82,6 +82,7 @@ class WebsocketStreamingClientSingleConnection:
         # WebSocket
         self._ws_client = None
         self._socket_timeout = None
+        self._ping_sender_thread = None
 
         # logger
         self._logger = None
