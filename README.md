@@ -29,7 +29,7 @@ In order to use Verbit's Streaming Speech Recognition services, you must place a
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
-For further details regarding the Ordering API, please refer to the documentation here: [Ordering API](https://platform.verbit.co/api_docs).
+For further details regarding the Ordering API, please refer to the documentation here: [Ordering API](https://platform.verbit.co/api_docs).  # TODO : BROKEN LINK!! USE https://app.swaggerhub.com/apis-docs/Verbit/ordering/ INSTEAD??
 
 ### Creating a WebSocketStreamingClient
 
@@ -144,7 +144,7 @@ The End-of-Stream message can be sent using the `send_eos_event()` method which 
 }
 ```
 
-### Responses
+### Response Types
 
 Responses received through the WebSocket are JSON objects with a specific schema (a full description of which can be found in [examples/responses/schema.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/examples/responses/schema.md)).
 There are two types of responses - "transcript" and "captions":
@@ -162,6 +162,8 @@ The `is_final` field is always `True` because no updates will be output for the 
 
     Example "captions" responses can be found in [examples/responses/captions.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/examples/responses/captions.md).
 
+# TODO : explain difference between transcript and captions in terms of silence handling!
+
 ### Error handling and recovery
 
 #### Initial connection
@@ -173,6 +175,9 @@ In case the connection to the service is dropped during a session, the behavior 
 This client SDK contains two implementations, which have the same interface, but differ in their error handling behavior:
 1. `WebSocketStreamingClientSingleConnection` - the base implementation; does not attempt to reconnect in case the connection was dropped prematurely. It can be useful, for example, if you would like to implement your own connection error handling logic.
 2. `WebSocketStreamingClient` - the default implementation; will attempt to reconnect in case the connection was closed prematurely, as many times as needed, until the final response is received (or some non-retryable error occurrs).
+
+#### Idle streams
+... # TODO : add
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.
