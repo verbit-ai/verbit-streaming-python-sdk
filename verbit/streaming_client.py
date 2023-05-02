@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import json
-import time
 import random
 import string
 import socket
@@ -11,9 +10,9 @@ import logging
 import requests
 
 from enum import IntFlag
-from threading import Thread
 from dataclasses import dataclass
 from urllib.parse import urlencode
+from threading import Thread, Event
 
 import tenacity
 from tenacity import retry, wait_random, wait_random_exponential, stop_after_delay, stop_after_attempt
@@ -82,6 +81,7 @@ class WebsocketStreamingClientSingleConnection:
         # WebSocket
         self._ws_client = None
         self._socket_timeout = None
+        self._ping_event = Event()
         self._ping_sender_thread = None
 
         # logger
@@ -260,7 +260,9 @@ class WebsocketStreamingClientSingleConnection:
         if self.AUTO_PING_INTERVAL_SECONDS > 0:
             self._ping_sender_thread = Thread(
                 target=self._ping_sender_worker,
-                name='ws_ping_sender')
+                name='ws_ping_sender',
+                daemon=True)
+            self._ping_event.clear()
             self._ping_sender_thread.start()
 
         # return response generator
@@ -403,10 +405,10 @@ class WebsocketStreamingClientSingleConnection:
             chars = string.ascii_lowercase + string.digits
             return ''.join(random.choices(chars, k=self.AUTO_PING_PAYLOAD_SIZE))
 
-        while self._ws_client.connected:
+        while not self._ping_event.wait(self.AUTO_PING_INTERVAL_SECONDS):
             try:
-                self._ws_client.ping(_random_payload())
-                time.sleep(self.AUTO_PING_INTERVAL_SECONDS)
+                if self._ws_client.connected:
+                    self._ws_client.ping(_random_payload())
             except Exception as ex:
                 self._logger.warning(f'Error sending ping: {ex}')
 
@@ -672,10 +674,12 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
             except self.CONNECTION_EXCEPTION_CLASSES as connection_error:
                 self._log_exception(f'Error while generating responses', connection_error)
 
+                # wait for ping sender thread
                 if self._ping_sender_thread and self._ping_sender_thread.is_alive():
-                    self._ping_sender_thread.join(0.1)
+                    self._ping_event.set()
+                    self._ping_sender_thread.join()
 
-                # wait for other threads, that still access the WebSocket to fail and stop
+                # wait for media thread, that still accesses the WebSocket to fail and stop
                 self._wait_for_thread(timeout_step=0.1, global_timeout=1.0)
 
                 # if media stream already finished

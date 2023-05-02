@@ -73,7 +73,7 @@ class TestClientSDK(unittest.TestCase):
 
         # client close triggers sending an EOS message:
         self.client._ws_client.send.assert_called()
-        arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
+        arg0_client_eos_send = self.client._ws_client.send.call_args_list[-1][0][0]
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
         self.assertIn('EOS', arg0_client_eos_send)
 
@@ -117,7 +117,7 @@ class TestClientSDK(unittest.TestCase):
 
         # client close triggers sending an EOS message:
         self.client._ws_client.send.assert_called()
-        arg0_client_eos_send = self.client._ws_client.send.call_args_list[0][0][0]
+        arg0_client_eos_send = self.client._ws_client.send.call_args_list[-1][0][0]
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
         self.assertIn('EOS', arg0_client_eos_send)
 
