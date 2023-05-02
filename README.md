@@ -164,8 +164,8 @@ The `is_final` field is always `True` because no updates will be output for the 
 
 #### Responses on silent audio segments
 It should be noted that "transcript" and "captions" responses behave differently when the audio being transcribed is silent:
-* "transcript" responses are sent regardless of the audio content, in such a way that the entire audio duration is covered by "transcript" responses. In case of a silent audio segment, "transcript" responses will be sent with an empty word list.
-* "captions" responses are sent only when the speech recognition output contains words, which can be segmented into a caption. In case of a silent audio segment, no "captions" responses will be sent, since a caption doesn't make sense without any words. As a result of the nature of this response type, "captions" responses will not necessarily cover the entire audio duration (i.e. there may be "gaps" between "captions" responses). 
+* "transcript" responses are sent regardless of the audio content, in such a way that the entire audio duration is covered by "transcript" responses. In case of a silent audio segment, "transcript" responses will be sent with an empty word list, but with timestamps which mark the portion of the audio that was transcribed.
+* "captions" responses are sent only when the speech recognition output contains words. In case of a silent audio segment, no "captions" responses will be sent, since a caption doesn't make sense without any words. Therefore, "captions" responses will not necessarily cover the entire audio duration (i.e. there may be "gaps" between "captions" responses). 
 
 ### Error handling and recovery
 
@@ -180,7 +180,7 @@ This client SDK contains two implementations, which have the same interface, but
 2. `WebSocketStreamingClient` - the default implementation; will attempt to reconnect in case the connection was closed prematurely, as many times as needed, until the final response is received (or some non-retryable error occurrs).
 
 ### Idle streams
-In case the media stream comes from an external source, there may be times when no messages are sent over the WebSocket. 
+In case the media stream comes from an external source (e.g. RTMP), there may be times when no messages are sent over the WebSocket. 
 For example:
 * The external media source hasn't started yet
 * The media stream is silent and only "captions" responses were requested (see section on [silent audio segments](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/README.md#responses-on-silent-audio-segments)). 
