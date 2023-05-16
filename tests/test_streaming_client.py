@@ -20,7 +20,7 @@ class TestClientSDK(unittest.TestCase):
     # Implementing WebSocket 'OPCODE_CLOSE'
     # Receiving Connection Close Status Codes: Following RFC6455
     # See: https://websocket-client.readthedocs.io/en/latest/examples.html#receiving-connection-close-status-codes
-    HAPPY_CLOSE_MSG = struct.pack("!H", websocket.STATUS_GOING_AWAY) + b"Test generator ended is the reason."
+    HAPPY_CLOSE_MSG = struct.pack("!H", websocket.STATUS_NORMAL) + b"Test generator ended is the reason."
     UNEXPECTED_CLOSE_MSG = struct.pack("!H", websocket.STATUS_UNEXPECTED_CONDITION) + b"Test generator error testing."
     INVALID_UTF8_CLOSE_MSG = struct.pack("!H", 808) + b"\xc3\x28"
 
