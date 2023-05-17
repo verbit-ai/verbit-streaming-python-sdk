@@ -189,6 +189,9 @@ In case no message is sent over the WebSocket for more than 10 minutes, the conn
 
 If you choose to implement your own client, make sure to handle the "pong" messages you will get from the service, in response to your "ping" messages. 
 
+### Connection duration limit
+In case the media stream comes from an external source (e.g. RTMP), the maximum allowed connection duration is 2 hours. After that time, the server will drop the connection with a "Going Away" (code: 1001) close message. In such cases, it is the client's responsibility to reconnect. 
+This client SDK automatically attempts to reconnect if connection is closed with "Going Away" message.    
 
 ### Testing
 This client SDK comes with a set of unit-tests that can be used to ensure the correct functionality of the streaming client.

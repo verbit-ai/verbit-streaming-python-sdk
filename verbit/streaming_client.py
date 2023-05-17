@@ -16,7 +16,7 @@ from threading import Thread, Event
 
 import tenacity
 from tenacity import retry, wait_random, wait_random_exponential, stop_after_delay, stop_after_attempt
-from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
+from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, WebSocketConnectionClosedException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
 
 
 @dataclass
@@ -568,11 +568,16 @@ class WebsocketStreamingClientSingleConnection:
 
             # check if close code signals a problem
             msg = f'WebSocket closed. Code={code}, Reason={reason}'
-            if code not in (STATUS_NORMAL, STATUS_GOING_AWAY):
-                self._logger.warning('Unexpected close code: ' + msg)
-            else:
+            if code == STATUS_NORMAL:
                 self._logger.info(msg)
-
+            elif code == STATUS_GOING_AWAY:
+                self._logger.warning(msg)
+                raise WebSocketConnectionClosedException(msg)
+            else:
+                self._logger.warning('Unexpected close code: ' + msg)
+        except WebSocketConnectionClosedException:
+            # re-raise exception, to invoke reconnection attempt
+            raise
         except Exception as ex:
             self._log_exception(f'WebSocket closed with invalid payload. Data={data}', ex)
 
