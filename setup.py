@@ -7,14 +7,14 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/verbit-ai/verbit-streaming-python-sdk',
 
-    version='0.10.4',
+    version='0.10.5',
 
     packages=['verbit'],
     package_dir={'verbit': 'verbit'},
     python_requires=">=3.8",
     install_requires=[
         'websocket-client~=1.2.3',
-        'tenacity~=8.0.1',
+        'tenacity<9>8',
         'requests<3'
     ],
     zip_safe=False
