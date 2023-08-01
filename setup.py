@@ -14,7 +14,7 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         'websocket-client~=1.2.3',
-        'tenacity<9>8',
+        'tenacity>8,<9',
         'requests<3'
     ],
     zip_safe=False
