@@ -474,22 +474,6 @@ class WebsocketStreamingClientSingleConnection:
                     # parse from json
                     resp = json.loads(data.decode('utf-8'))
 
-                    # update end-of-stream response types flag
-                    received_eos_response = resp['response'].get('is_end_of_stream', False)
-                    if received_eos_response:
-                        response_type = ResponseType.from_name(resp['response']['type'])
-                        if response_type is None:
-                            self._logger.warning(f"Received reply with unknown 'type' field: {resp['response']['type']}.")
-                        else:
-                            self._eos_response_types |= response_type
-
-                    # explicitly close on final response:
-                    # since the 'finally' block will only run at GC time of the generator:
-                    if self._eos_response_types == self._response_types:
-                        self._logger.info(f'Received all expected EOS responses.')
-                        self._close_ws()
-                        should_stop = True
-
                     # response is ready
                     yield resp
 
