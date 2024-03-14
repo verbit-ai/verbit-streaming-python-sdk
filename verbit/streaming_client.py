@@ -93,10 +93,6 @@ class WebsocketStreamingClientSingleConnection:
         self._stop_media_thread = False
         self._media_stream_finished = False
 
-        # responses
-        self._response_types = 0
-        self._eos_response_types = 0
-
         # error handling
         self._on_media_error = on_media_error or self._default_on_media_error
 
