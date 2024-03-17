@@ -67,7 +67,6 @@ class TestClientSDK(unittest.TestCase):
         # since the response generator is mocked, we can't iterate over it until exhaustion,
         # so we iterate only the number of times we know we have responses for.
         # just to test the response generating mechanism
-        i = 0
         for i in range(len(side_effects)):
             response = next(response_generator)
             self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
