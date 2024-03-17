@@ -49,7 +49,8 @@ class TestClientSDK(unittest.TestCase):
 
         # mock websocket receive data func
         side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
-                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1'])]
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
 
         self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
 
@@ -63,11 +64,13 @@ class TestClientSDK(unittest.TestCase):
         self._wait_for_media_key(self._media_status, key='finished')
 
         # assert expected responses
-        # start stream and expect StopIteration on third `next` call on generator, when generator is finished.
-        self.assertEqual(next(response_generator), self._json_to_dict(side_effects[0][1]))
-        self.assertEqual(next(response_generator), self._json_to_dict(side_effects[1][1]))
-        with self.assertRaises(Exception):
-            next(response_generator)
+        # since the response generator is mocked, we can't iterate over it until exhaustion,
+        # so we iterate only the number of times we know we have responses for.
+        # just to test the response generating mechanism
+        i = 0
+        for i in range(len(side_effects)):
+            response = next(response_generator)
+            self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
 
         # client close triggers sending an EOS message:
         self.client._ws_client.send.assert_called()
@@ -75,8 +78,53 @@ class TestClientSDK(unittest.TestCase):
         self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
         self.assertIn('EOS', arg0_client_eos_send)
 
-        # assert client closed after EOS response
-        self.client._ws_client.close.assert_called_once()
+        # close client
+        self.client._ws_client.close()
+
+        # check that ws is no longer connected
+        self.assertFalse(self.client._ws_client.connected)
+
+    @patch('verbit.streaming_client.WebSocketStreamingClient._get_auth_token', mock_get_auth_token)
+    def test_happy_flow_external_source(self):
+        """
+        Happy flow:
+            1. responses arrive
+            2. until there's a response with EOS
+            3. client has called 'close()' after EOS
+        """
+
+        # mock websocket receive data func
+        side_effects = [(websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp0']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp1']),
+                        (websocket.ABNF.OPCODE_TEXT, RESPONSES['happy_json_resp_EOS'])]
+
+        self._patch_ws_class(responses_mock=MagicMock(side_effect=side_effects))
+
+        # start client with no media generator (and mock connection)
+        response_generator = self.client.start_with_external_source(self.ws_url)
+        self.client._ws_client.connect.assert_called_once()
+        self.assertTrue(self.client._ws_client.connected)
+
+        # send end-of-stream signal
+        self.client.send_eos_event()
+
+        # assert expected responses
+        # since the response generator is mocked we can't iterate over it until exhaustion,
+        # so we iterate only the number of times we know we have responses for.
+        # just to test the response generating mechanism
+        i = 0
+        for i in range(len(side_effects)):
+            response = next(response_generator)
+            self.assertEqual(response, self._json_to_dict(side_effects[i][1]))
+
+        # client close triggers sending an EOS message:
+        self.client._ws_client.send.assert_called()
+        arg0_client_eos_send = self.client._ws_client.send.call_args_list[-1][0][0]
+        self.assertIsInstance(arg0_client_eos_send, str, f'Given type: {type(arg0_client_eos_send).__name__}')
+        self.assertIn('EOS', arg0_client_eos_send)
+
+        # close client
+        self.client._ws_client.close()
 
         # check that ws is no longer connected
         self.assertFalse(self.client._ws_client.connected)
