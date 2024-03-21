@@ -10,6 +10,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
     "response": {
         "id": "9ab9a97c-9a21-090c-6a98-1b68e512ad32",
         "type": "captions",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": true,
         "is_end_of_stream": false,
         "start": 0.2,
@@ -64,6 +66,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
     "response": {
         "id": "27f44bc9-1506-457a-8527-8e803aeb68b4",
         "type": "captions",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": true,
         "is_end_of_stream": false,
         "start": 2.03,
@@ -146,6 +150,8 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
     "response": {
         "id": "14a88403c-5a64-402c-b696-1e74a517dd30",
         "type": "captions",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": true,
         "is_end_of_stream": false,
         "start": 5.03,
