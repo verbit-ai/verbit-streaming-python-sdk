@@ -15,6 +15,8 @@ Note that:
     "response": {
         "id": "e5ff9cc8-d5e6-4da5-aa51-bd1874f7bf49",
         "type": "transcript",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": false,
         "is_end_of_stream": false,
         "start": 0.0,
@@ -55,6 +57,8 @@ Note that:
     "response": {
         "id": "22b38e61-d09a-4a5f-a44d-a2f36e0b32d3",
         "type": "transcript",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": false,
         "is_end_of_stream": false,
         "start": 0.0,
@@ -133,6 +137,8 @@ Note that:
     "response": {
         "id": "5a88397c-8a61-405c-b691-1e68a511bd27",
         "type": "transcript",
+        "service_type": "transcription",
+        "language_code": "en-US",
         "is_final": true,
         "is_end_of_stream": false,
         "start": 0.0,

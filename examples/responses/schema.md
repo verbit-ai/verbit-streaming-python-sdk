@@ -7,6 +7,8 @@ Responses returned by Verbit's Streaming Speech Recognition services have the fo
     "response": {
         "id": string (UUID),
         "type": "transcript" | "captions",
+        "service_type": "transcription" | "translation",
+        "language_code": str,
         "start": float,
         "end": float,
         "start_pts": float,
@@ -45,6 +47,8 @@ Responses returned by Verbit's Streaming Speech Recognition services have the fo
 - `"response"` - The root element in the response JSON
   - `"id"` - A unique identifier of the response (UUID)
   - `"type"` - The response type. Can be either "transcript" or "captions" (See explanation in [README.md](https://github.com/verbit-ai/verbit-streaming-python-sdk/blob/main/README.md#responses)).
+  - `"service_type"` - The type of service which produced the response. Can be either "transcription" (of the input language) or "translation" (of the input language transcription into a target language).
+  - `"language_code"` - The language code representing the language of the words in the response. The first two characters denote the language, and the last two characters denote the locale. 
   - `"start"` - The start time of the utterance. Measured in seconds from the beginning of the media stream.
   - `"end"` - The (current) end time of the utterance. Measured in seconds from the beginning of the media stream.
   - `"start_pts"` - The pts value corresponding to the `"start"` of the response, as received from the input media stream. Measured in seconds.
