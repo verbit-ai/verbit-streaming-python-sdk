@@ -1,10 +1,13 @@
 ## Captions response
 
-Below are 3 "captions" example responses.
+Below are 3 "captions" example responses from "transcription" service type.
+
+In addition, an example "captions" response from "translation" service type can be found at the end of this file.
 
 Note that all "captions" responses are considered final (`"is_final": true`), since "captions" responses do not update incrementally like "transcript" responses, but rather they are published sequentially.
 
-### First "captions" response
+### Service Type: Transcription 
+#### First "captions" response
 ```json
 {
     "response": {
@@ -60,7 +63,7 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
 }
 ```
 
-### Second "captions" response
+#### Second "captions" response
 ```json
 {
     "response": {
@@ -144,7 +147,7 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
 }
 ```
 
-### Third "captions" response
+#### Third "captions" response
 ```json
 {
     "response": {
@@ -224,6 +227,63 @@ Note that all "captions" responses are considered final (`"is_final": true`), si
                     {
                         "start": 7.67,
                         "end": 7.67,
+                        "kind": "punct",
+                        "value": ",",
+                        "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
+                    }
+                ]
+            }
+        ]
+    }
+}
+```
+
+### Service Type: Translation 
+#### Example "captions" response
+```json
+{
+    "response": {
+        "id": "9ab9a97c-9a21-090c-6a98-1b68e512ad32",
+        "type": "captions",
+        "service_type": "translation",
+        "language_code": "es-ES",
+        "is_final": true,
+        "is_end_of_stream": false,
+        "start": 0.2,
+        "end": 1.25,
+        "start_pts": 4000.2,
+        "start_epoch": 1666011448.7125702,
+        "speakers": [
+            {
+                "id": "5a155a51-b181-4451-84f2-5f9e141aea52",
+                "label": null
+            }
+        ],
+        "alternatives": [
+            {
+                "transcript": "Bienvenidos amigos,",
+                "start": 0.2,
+                "end": 1.25,
+                "start_pts": 4000.2,
+                "start_epoch": 1666011448.7125702,
+                "items": [
+                    {
+                        "start": 0.2,
+                        "end": 0.8,
+                        "kind": "text",
+                        "value": "Bienvenidos",
+                        "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
+                    },
+                    {
+                        "start": 0.8,
+                        "end": 1.25,
+                        "kind": "text",
+                        "value": "amigos",
+                        "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
+                    },
+                    {
+                        "start": 1.25,
+                        "end": 1.25,
                         "kind": "punct",
                         "value": ",",
                         "speaker_id": "5a155a51-b181-4451-84f2-5f9e141aea52"
