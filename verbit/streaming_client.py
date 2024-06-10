@@ -11,12 +11,14 @@ import requests
 
 from enum import IntFlag
 from dataclasses import dataclass
-from urllib.parse import urlencode
 from threading import Thread, Event
+from urllib.parse import urlencode, urlparse, parse_qs
 
 import tenacity
 from tenacity import retry, wait_random, wait_random_exponential, stop_after_delay, stop_after_attempt
-from websocket import WebSocket, WebSocketException, WebSocketBadStatusException, WebSocketConnectionClosedException, ABNF, STATUS_NORMAL, STATUS_GOING_AWAY
+from websocket import (WebSocket,
+                       WebSocketException, WebSocketBadStatusException, WebSocketConnectionClosedException,
+                       ABNF, STATUS_NORMAL, STATUS_GOING_AWAY)
 
 
 @dataclass
@@ -47,6 +49,10 @@ class WebsocketStreamingClientSingleConnection:
     # events
     EVENT_EOS = 'EOS'
 
+    # endpoints
+    DEFAULT_WEBSOCKET_ENDPOINT = 'wss://speech.verbit.co/ws'
+    DEFAULT_AUTH_ENDPOINT = 'https://users.verbit.co/api/v1/auth'
+
     # connection related exception classes:
     #  1. WebSocketException: Raised from remote WebSocket connection
     #  2. ConnectionError: Raised when WebSocket is on the same local machine
@@ -75,7 +81,7 @@ class WebsocketStreamingClientSingleConnection:
 
         # auth
         self._customer_token = customer_token
-        self._auth_endpoint = "https://users.verbit.co/api/v1/auth"
+        self._auth_endpoint = self.DEFAULT_AUTH_ENDPOINT
         self._ws_auth_headers = None
 
         # WebSocket
@@ -112,11 +118,11 @@ class WebsocketStreamingClientSingleConnection:
         self._max_connection_retry_seconds = val
 
     @property
-    def socket_timeout(self) -> typing.Union[None, float]:
+    def socket_timeout(self) -> typing.Optional[float]:
         return self._socket_timeout
 
     @socket_timeout.setter
-    def socket_timeout(self, timeout: typing.Union[None, float]):
+    def socket_timeout(self, timeout: typing.Optional[float]):
         """
         Sets low-level socket timeout, of the WebSocket.
 
@@ -135,21 +141,23 @@ class WebsocketStreamingClientSingleConnection:
     # Interface #
     # ========= #
     def start_stream(self,
-                     ws_url: str,
                      media_generator: typing.Iterator[bytes],
+                     ws_url: typing.Optional[str] = DEFAULT_WEBSOCKET_ENDPOINT,
                      media_config: MediaConfig = None,
                      response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
         """
         Start streaming media and get back speech recognition responses from server.
 
-        :param ws_url: websocket url to use, as obtained from the Ordering API.
         :param media_generator: a generator of media bytes chunks to stream over WebSocket for speech recognition
-        :param media_config:     a MediaConfig dataclass which describes the media format sent by the client
+        :param ws_url:          websocket url to use, as obtained from the Ordering API.
+                                if omitted, a default websocket endpoint will be used, for setting up an ad-hoc
+                                conenection, with no order previously created.
+        :param media_config:    a MediaConfig dataclass which describes the media format sent by the client
         :param response_types:  a bitmask Flag denoting which response type(s) should be returned by the service
 
         :return: a generator which yields speech recognition responses (transcript, captions or both)
         """
-        return self._connect_and_start(ws_url, media_generator=media_generator, media_config=media_config, response_types=response_types)
+        return self._connect_and_start(ws_url=ws_url, media_generator=media_generator, media_config=media_config, response_types=response_types)
 
     def start_with_external_source(self,
                                    ws_url: str,
@@ -211,8 +219,8 @@ class WebsocketStreamingClientSingleConnection:
     # ======== #
     def _connect_and_start(self,
                            ws_url: str,
-                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
-                           media_config: typing.Union[MediaConfig, None] = None,
+                           media_generator: typing.Optional[typing.Iterator[bytes]] = None,
+                           media_config: typing.Optional[MediaConfig] = None,
                            response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         """
@@ -236,7 +244,7 @@ class WebsocketStreamingClientSingleConnection:
             raise RuntimeError('Media stream already finished! Will not connect to WebSocket as server will not return any responses.')
 
         # get websocket headers
-        self._ws_auth_headers = self._get_ws_connect_headers()
+        self._ws_auth_headers = self._get_ws_connect_headers(ws_url)
 
         # connect to WebSocket
         self._logger.info(f'Connecting to WebSocket at {ws_url}')
@@ -561,8 +569,8 @@ class WebsocketStreamingClientSingleConnection:
         except Exception as ex:
             self._log_exception(f'WebSocket closed with invalid payload. Data={data}', ex)
 
-    def _get_ws_connect_headers(self) -> dict:
-        return {**self._get_ws_auth_info()}
+    def _get_ws_connect_headers(self, ws_url: str) -> dict:
+        return {**self._get_ws_auth_info(ws_url)}
 
     @staticmethod
     def _get_ws_connect_query_string(media_config: MediaConfig, response_types: ResponseType) -> str:
@@ -575,10 +583,35 @@ class WebsocketStreamingClientSingleConnection:
             'get_captions': bool(response_types & ResponseType.Captions),
         })
 
-    def _get_ws_auth_info(self) -> dict:
+    @staticmethod
+    def _get_session_token_from_ws_url(ws_url: str) -> typing.Optional[str]:
+        parsed_ws_url = urlparse(ws_url)
+        query_params = parse_qs(parsed_ws_url.query)
+        return query_params.get('token')
+
+    def _get_ws_auth_info(self, ws_url: str) -> dict:
 
         try:
-            auth_token = self._get_auth_token()
+
+            # extract session token from websocket url
+            session_token = self._get_session_token_from_ws_url(ws_url)
+
+            # if 'token' is provided, it means that
+            # the connection is to an existing session
+            # in such case, we need to obtain an auth
+            # token and send it in the connection
+            # request's headers.
+            if session_token:
+                auth_token = self._get_auth_token()
+
+            # if 'token' is not provided, if means that
+            # this is an ad-hoc connection (not related
+            # to any existing session).
+            # in such case, we should send the customer
+            # token instead of obtaining an auth token.
+            else:
+                auth_token = self._customer_token
+
         except Exception:
             self._logger.exception(f"Failed to get auth token.")
             raise
@@ -624,8 +657,8 @@ class WebSocketStreamingClient(WebsocketStreamingClientSingleConnection):
 
     def _connect_and_start(self,
                            ws_url: str,
-                           media_generator: typing.Union[typing.Iterator[bytes], None] = None,
-                           media_config: typing.Union[MediaConfig, None] = None,
+                           media_generator: typing.Optional[typing.Iterator[bytes]] = None,
+                           media_config: typing.Optional[MediaConfig] = None,
                            response_types: ResponseType = ResponseType.Transcript) -> typing.Iterator[typing.Dict]:
 
         # store state for reconnection
