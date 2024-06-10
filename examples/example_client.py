@@ -46,7 +46,7 @@ def example_streaming_client(ws_url, customer_token, media_generator):
     response_types = ResponseType.Transcript | ResponseType.Captions
 
     # upgrade connection to websocket and start audio stream
-    response_generator = client.start_stream(ws_url, media_generator=media_generator, media_config=media_config, response_types=response_types)
+    response_generator = client.start_stream(media_generator=media_generator, ws_url=ws_url, media_config=media_config, response_types=response_types)
 
     # get transcription responses
     for response in response_generator:
