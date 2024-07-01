@@ -247,9 +247,7 @@ class WebsocketStreamingClientSingleConnection:
         self._ws_auth_headers = self._get_ws_connect_headers(ws_url)
 
         # connect to WebSocket
-        self._logger.info(f'Connecting to WebSocket at {ws_url}')
         self._connect_websocket(ws_url, media_config=media_config, response_types=response_types)
-        self._logger.info('WebSocket connected!')
 
         # start media sender thread
         if media_generator is not None:
@@ -294,7 +292,7 @@ class WebsocketStreamingClientSingleConnection:
         """
 
         # build WebSocket url
-        ws_url += self._get_ws_connect_query_string(media_config=media_config, response_types=response_types)
+        ws_url += self._get_ws_connect_query_string(ws_url=ws_url, media_config=media_config, response_types=response_types)
 
         # create WebSocket instance
         self._ws_client = WebSocket(enable_multithread=True)
@@ -358,7 +356,9 @@ class WebsocketStreamingClientSingleConnection:
                stop=stop_after_delay(self.max_connection_retry_seconds),
                retry=retry_predicate)
         def connect_and_retry():
+            self._logger.info(f'Connecting to WebSocket at {ws_url}')
             self._ws_client.connect(ws_url, header=self._ws_auth_headers)
+            self._logger.info('WebSocket connected!')
 
         # try opening WebSocket connection
         try:
@@ -573,8 +573,11 @@ class WebsocketStreamingClientSingleConnection:
         return {**self._get_ws_auth_info(ws_url)}
 
     @staticmethod
-    def _get_ws_connect_query_string(media_config: MediaConfig, response_types: ResponseType) -> str:
-        return '&' + urlencode({
+    def _get_ws_connect_query_string(ws_url: str, media_config: MediaConfig, response_types: ResponseType) -> str:
+        # make sure query params are preceded with a question mark
+        delimiter = '?' if '?' not in ws_url else '&'
+
+        return delimiter + urlencode({
             'format': media_config.format,
             'sample_rate': media_config.sample_rate,
             'sample_width': media_config.sample_width,
