@@ -24,12 +24,17 @@ To install this package run:
 To access Verbit's Streaming Speech Recognition services an API key (customer token) should be obtained by sending an email request to the following address: api@verbit.ai  
 
 ### Ordering API
-In order to use Verbit's Streaming Speech Recognition services, you must place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a WebScoket URL, composed of the base streaming API URL and your order's token. The URL, together with the customer token, will be used to initiate a WebSocket connection.
+In order to use Verbit's Streaming Speech Recognition services, you should place an order using Verbit's Ordering API. Your request to the Ordering API must specify that the desired input and/or output schemes are streaming through a WebSocket. Upon successful placement of the order, you will be issued a WebScoket URL, composed of the base streaming API URL and your order's token. The URL, together with the customer token, will be used to initiate a WebSocket connection.
 
 These two APIs and their respective SDKs are separated on purpose because placing orders to Verbit's Transcription services does not necessarily imply media streaming (you might want to upload a file instead).
 Also, the services which operate order placement and the actual streaming of media are commonly distinct, therefore we find it useful to separate the SDKs to allow maximal flexibility for our customers.
 
 For further details regarding the Ordering API, please refer to the documentation here: [Ordering API](https://app.swaggerhub.com/apis-docs/Verbit/ordering/).
+
+### Ad-hoc connections
+It is also possible to connect to Verbit's Streaming Speech Recognition service without placing an order in advance. To do that, simply omit the `ws_url` parameter when calling `start_stream`.
+Ad-hoc connections are supported only when [streaming the media via the WebSocket](#streaming-media-via-websocket); i.e. they are not supported when [streaming the media from an external source](#providing-media-via-an-external-source).
+
 
 ### Creating a WebSocketStreamingClient
 
